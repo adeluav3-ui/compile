@@ -1,14 +1,20 @@
 import Link from "next/link";
+import Image from "next/image";
 
 export default function Footer() {
   return (
     <footer className="py-14">
       <div className="mx-auto flex max-w-[1120px] flex-wrap items-start justify-between gap-6 px-8">
         <div className="max-w-xs">
-          <div className="flex items-center gap-2 font-serif text-xl font-bold text-navy-deep">
-            <span className="inline-block h-2.5 w-2.5 rounded-[1px] bg-brass" />
-            Compile
-          </div>
+          <Link href="/">
+            <Image
+              src="/images/compile-lockup-navy.svg"
+              alt="Compile"
+              width={110}
+              height={28}
+              className="h-7 w-auto"
+            />
+          </Link>
           <p className="mt-3 text-sm text-muted">
             A coding education studio. Cohort, individual, and school programs — everything compiles.
           </p>

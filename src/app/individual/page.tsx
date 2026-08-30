@@ -1,5 +1,6 @@
 import { Metadata } from "next";
 import Link from "next/link";
+import Image from "next/image";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 import WaitlistForm from "@/components/WaitlistForm";
@@ -52,9 +53,14 @@ export default function IndividualPage() {
                 "repeating-linear-gradient(135deg, transparent, transparent 11px, #EAEBE7 11px, #EAEBE7 12px)",
             }}
           >
-            <div className="mb-4 font-serif text-[72px] font-semibold leading-none text-line">
-              {"{ }"}
-            </div>
+            <Image
+              src="/images/compile-icon-navy.svg"
+              alt=""
+              width={120}
+              height={132}
+              className="mb-6 h-28 w-auto opacity-10"
+              aria-hidden="true"
+            />
             <p className="font-mono text-[11px] uppercase tracking-widest text-muted">
               Nothing to show yet —<br />the material is still being<br />built, on purpose.
             </p>

@@ -1,12 +1,19 @@
 import Link from "next/link";
+import Image from "next/image";
 
 export default function Nav() {
   return (
     <header className="sticky top-0 z-50 border-b border-line bg-paper/92 backdrop-blur-sm">
       <div className="mx-auto flex h-[76px] max-w-[1120px] items-center justify-between px-8">
-        <Link href="/" className="flex items-center gap-2 font-serif text-xl font-bold text-navy-deep">
-          <span className="inline-block h-2.5 w-2.5 rounded-[1px] bg-brass" />
-          Compile
+        <Link href="/" className="flex items-center">
+          <Image
+            src="/images/compile-lockup-navy.svg"
+            alt="Compile"
+            width={110}
+            height={28}
+            priority
+            className="h-7 w-auto"
+          />
         </Link>
 
         <nav className="hidden items-center gap-9 md:flex">
