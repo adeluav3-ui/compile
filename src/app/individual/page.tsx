@@ -76,16 +76,16 @@ export default function IndividualPage() {
           <div className="grid grid-cols-1 gap-px bg-line md:grid-cols-3">
             {[
               {
-                title: "Full curriculum",
-                body: "Everything from JSS1 to SSS3 and the cohort syllabus — structured, sequenced, complete.",
+                title: "Everything in one place",
+                body: "All the topics and content covered across the cohort and school programs — packaged into one structured library you can move through at your own pace.",
               },
               {
                 title: "No live access",
                 body: "No cohort schedule to follow, no instructor sessions. You compile it at your own speed.",
               },
               {
-                title: "One payment",
-                body: "₦80,000, once. No subscription, no drip. Pay and own the whole library.",
+                title: "Pricing coming soon",
+                body: "We'll share pricing details before the course opens. Join the waitlist and you'll be the first to know.",
               },
             ].map((item) => (
               <div key={item.title} className="bg-surface px-8 py-10">
