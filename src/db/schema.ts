@@ -7,6 +7,7 @@ import {
   pgEnum,
   uuid,
   unique,
+  jsonb,
 } from "drizzle-orm/pg-core";
 
 // ---------------------------------------------------------------------------
@@ -141,12 +142,210 @@ export const payments = pgTable("payments", {
 });
 
 // ---------------------------------------------------------------------------
-// Email captures — for Individual Course "notify me" list
+// Waitlist — email + WhatsApp captures for Individual Course and School Edition
 // ---------------------------------------------------------------------------
 
-export const emailCaptures = pgTable("email_captures", {
+export const waitlistSourceEnum = pgEnum("waitlist_source", [
+  "individual_course",
+  "school_edition",
+]);
+
+export const waitlist = pgTable("waitlist", {
   id: uuid("id").primaryKey().defaultRandom(),
-  email: text("email").notNull().unique(),
-  source: text("source").notNull().default("individual_course"), // extensible
-  capturedAt: timestamp("captured_at", { withTimezone: true }).defaultNow().notNull(),
+  email: text("email").notNull(),
+  whatsapp: text("whatsapp"), // international format e.g. +2348012345678
+  source: waitlistSourceEnum("source").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+},
+(t) => [unique().on(t.email, t.source)] // one entry per email per source
+);
+
+// ===========================================================================
+// SCHOOL EDITION
+// ===========================================================================
+
+export const subscriptionStatusEnum = pgEnum("subscription_status", [
+  "active",
+  "expired",
+  "suspended",
+  "trial",
+]);
+
+export const classLevelEnum = pgEnum("class_level", [
+  "JSS1", "JSS2", "JSS3",
+  "SSS1", "SSS2", "SSS3",
+]);
+
+export const lessonTypeEnum = pgEnum("lesson_type", ["video", "text", "mixed"]);
+
+export const questionTypeEnum = pgEnum("question_type", ["mcq", "short_answer", "practical"]);
+
+// ---------------------------------------------------------------------------
+// Schools — one row per subscribing school
+// ---------------------------------------------------------------------------
+
+export const schools = pgTable("schools", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  address: text("address"),
+  state: text("state"), // Nigerian state
+  adminId: uuid("admin_id").references(() => profiles.id), // the school_admin profile
+  subscriptionStatus: subscriptionStatusEnum("subscription_status").notNull().default("trial"),
+  subscriptionExpiresAt: timestamp("subscription_expires_at", { withTimezone: true }),
+  licenseKey: text("license_key").unique(), // for offline license validation
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+// ---------------------------------------------------------------------------
+// School subscriptions — payment history per school
+// ---------------------------------------------------------------------------
+
+export const schoolSubscriptions = pgTable("school_subscriptions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  schoolId: uuid("school_id").notNull().references(() => schools.id, { onDelete: "cascade" }),
+  paystackReference: text("paystack_reference").notNull().unique(),
+  amountKobo: integer("amount_kobo").notNull(), // ₦150,000 = 15_000_000
+  periodStart: timestamp("period_start", { withTimezone: true }).notNull(),
+  periodEnd: timestamp("period_end", { withTimezone: true }).notNull(),
+  status: paymentStatusEnum("status").notNull().default("pending"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+// ---------------------------------------------------------------------------
+// Classes — e.g. "JSS1 A", "SS3 Science"
+// ---------------------------------------------------------------------------
+
+export const classes = pgTable("classes", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  schoolId: uuid("school_id").notNull().references(() => schools.id, { onDelete: "cascade" }),
+  name: text("name").notNull(), // "JSS1 A"
+  level: classLevelEnum("level").notNull(),
+  academicYear: text("academic_year").notNull(), // "2025/2026"
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+// ---------------------------------------------------------------------------
+// Student ↔ class membership
+// ---------------------------------------------------------------------------
+
+export const studentClasses = pgTable("student_classes", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  profileId: uuid("profile_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
+  classId: uuid("class_id").notNull().references(() => classes.id, { onDelete: "cascade" }),
+  enrolledAt: timestamp("enrolled_at", { withTimezone: true }).defaultNow().notNull(),
+  active: boolean("active").notNull().default(true),
+},
+(t) => [unique().on(t.profileId, t.classId)]
+);
+
+// ---------------------------------------------------------------------------
+// Teacher ↔ class assignments
+// ---------------------------------------------------------------------------
+
+export const teacherAssignments = pgTable("teacher_assignments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  profileId: uuid("profile_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
+  classId: uuid("class_id").notNull().references(() => classes.id, { onDelete: "cascade" }),
+  schoolId: uuid("school_id").notNull().references(() => schools.id, { onDelete: "cascade" }),
+  subject: text("subject"), // null = class teacher (all subjects)
+  assignedAt: timestamp("assigned_at", { withTimezone: true }).defaultNow().notNull(),
+},
+(t) => [unique().on(t.profileId, t.classId, t.subject)]
+);
+
+// ---------------------------------------------------------------------------
+// Subjects — curriculum subjects per level
+// ---------------------------------------------------------------------------
+
+export const subjects = pgTable("subjects", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(), // "Mathematics", "English Language"
+  code: text("code").notNull().unique(), // "MATH", "ENG"
+  levels: text("levels").array().notNull(), // ["JSS1","JSS2","JSS3"] — which levels use this
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+// ---------------------------------------------------------------------------
+// Lessons — one per topic within a subject + level
+// ---------------------------------------------------------------------------
+
+export const lessons = pgTable("lessons", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  subjectId: uuid("subject_id").notNull().references(() => subjects.id),
+  level: classLevelEnum("level").notNull(),
+  title: text("title").notNull(),
+  description: text("description"),
+  type: lessonTypeEnum("type").notNull().default("video"),
+  contentUrl: text("content_url"), // VdoCipher video ID for cloud; local path for offline
+  durationMinutes: integer("duration_minutes"),
+  order: integer("order").notNull().default(0), // lesson ordering within subject+level
+  publishedAt: timestamp("published_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+// ---------------------------------------------------------------------------
+// Lesson progress — per student
+// ---------------------------------------------------------------------------
+
+export const lessonProgress = pgTable("lesson_progress", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  profileId: uuid("profile_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
+  lessonId: uuid("lesson_id").notNull().references(() => lessons.id),
+  completed: boolean("completed").notNull().default(false),
+  progressSeconds: integer("progress_seconds").notNull().default(0),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+},
+(t) => [unique().on(t.profileId, t.lessonId)]
+);
+
+// ---------------------------------------------------------------------------
+// Practice questions — MCQ per subject + level
+// ---------------------------------------------------------------------------
+
+export const practiceQuestions = pgTable("practice_questions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  subjectId: uuid("subject_id").notNull().references(() => subjects.id),
+  lessonId: uuid("lesson_id").references(() => lessons.id), // optional: tied to a lesson
+  level: classLevelEnum("level").notNull(),
+  type: questionTypeEnum("type").notNull().default("mcq"),
+  question: text("question").notNull(),
+  options: jsonb("options"), // [{label:"A",text:"..."}, ...] for MCQ
+  correctAnswer: text("correct_answer").notNull(), // "A" for MCQ, text for short_answer
+  explanation: text("explanation"),
+  order: integer("order").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+// ---------------------------------------------------------------------------
+// Question attempts — per student
+// ---------------------------------------------------------------------------
+
+export const questionAttempts = pgTable("question_attempts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  profileId: uuid("profile_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
+  questionId: uuid("question_id").notNull().references(() => practiceQuestions.id),
+  answer: text("answer").notNull(),
+  correct: boolean("correct").notNull(),
+  attemptedAt: timestamp("attempted_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+// ---------------------------------------------------------------------------
+// Practical exams — student submissions for teacher review
+// ---------------------------------------------------------------------------
+
+export const practicalExams = pgTable("practical_exams", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  profileId: uuid("profile_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
+  classId: uuid("class_id").notNull().references(() => classes.id),
+  subjectId: uuid("subject_id").notNull().references(() => subjects.id),
+  title: text("title").notNull(),
+  submissionText: text("submission_text"),
+  submissionUrl: text("submission_url"), // file upload link
+  status: text("status").notNull().default("submitted"), // submitted | reviewed | returned
+  teacherFeedback: text("teacher_feedback"),
+  score: integer("score"), // 0-100
+  reviewedBy: uuid("reviewed_by").references(() => profiles.id),
+  submittedAt: timestamp("submitted_at", { withTimezone: true }).defaultNow().notNull(),
+  reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
 });

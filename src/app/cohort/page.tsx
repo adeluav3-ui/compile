@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Footer from "@/components/Footer";
-import NotifyForm from "@/components/NotifyForm";
+import WaitlistForm from "@/components/WaitlistForm";
 
 export const metadata = {
   title: "Cohort 01: Web & Platforms — Compile",
@@ -294,7 +294,7 @@ export default function CohortPage() {
                 self-paced library — for builders who want the material without live access to an
                 instructor. We&apos;re loading it properly before it opens, not rushing it out.
               </p>
-              <NotifyForm />
+              <WaitlistForm source="individual_course" compact />
             </div>
 
             <div

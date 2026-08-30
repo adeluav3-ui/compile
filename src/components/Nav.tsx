@@ -16,18 +16,18 @@ export default function Nav() {
           <Link href="/#programs" className="text-sm font-medium text-muted transition-colors hover:text-navy-deep">
             Programs
           </Link>
-          <span className="flex items-center gap-1.5 text-sm font-medium text-[#B5B9BE]">
+          <Link href="/individual" className="flex items-center gap-1.5 text-sm font-medium text-muted transition-colors hover:text-navy-deep">
             Individual
             <span className="font-mono rounded-[2px] bg-line px-1.5 py-0.5 text-[10px] tracking-wider text-muted">
-              Soon
+              Waitlist
             </span>
-          </span>
-          <span className="flex items-center gap-1.5 text-sm font-medium text-[#B5B9BE]">
+          </Link>
+          <Link href="/school" className="flex items-center gap-1.5 text-sm font-medium text-muted transition-colors hover:text-navy-deep">
             For Schools
             <span className="font-mono rounded-[2px] bg-line px-1.5 py-0.5 text-[10px] tracking-wider text-muted">
               Soon
             </span>
-          </span>
+          </Link>
         </nav>
 
         <Link

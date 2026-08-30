@@ -83,8 +83,8 @@ export default function Home() {
                 A self-paced library covering everything taught in the cohort and school editions —
                 for builders who want the material without live access.
               </p>
-              <Link href="/cohort#individual" className="text-sm font-semibold text-[#9A9FA6]">
-                Get notified →
+              <Link href="/individual" className="text-sm font-semibold text-[#9A9FA6]">
+                Join the waitlist →
               </Link>
               <div className="mt-auto border-t border-line pt-3.5 font-mono text-[11px] text-muted">
                 In development
@@ -103,7 +103,7 @@ export default function Home() {
                 A full JSS1–SSS3 curriculum for schools — course content, practical exams, and
                 dashboards for teachers, students, and school admins.
               </p>
-              <Link href="#" className="text-sm font-semibold text-[#9A9FA6]">
+              <Link href="/school" className="text-sm font-semibold text-[#9A9FA6]">
                 Learn more →
               </Link>
               <div className="mt-auto border-t border-line pt-3.5 font-mono text-[11px] text-muted">
