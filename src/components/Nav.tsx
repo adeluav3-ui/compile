@@ -1,0 +1,42 @@
+import Link from "next/link";
+
+export default function Nav() {
+  return (
+    <header className="sticky top-0 z-50 border-b border-line bg-paper/92 backdrop-blur-sm">
+      <div className="mx-auto flex h-[76px] max-w-[1120px] items-center justify-between px-8">
+        <Link href="/" className="flex items-center gap-2 font-serif text-xl font-bold text-navy-deep">
+          <span className="inline-block h-2.5 w-2.5 rounded-[1px] bg-brass" />
+          Compile
+        </Link>
+
+        <nav className="hidden items-center gap-9 md:flex">
+          <Link href="/cohort" className="text-sm font-medium text-muted transition-colors hover:text-navy-deep">
+            Cohort 01
+          </Link>
+          <Link href="/#programs" className="text-sm font-medium text-muted transition-colors hover:text-navy-deep">
+            Programs
+          </Link>
+          <span className="flex items-center gap-1.5 text-sm font-medium text-[#B5B9BE]">
+            Individual
+            <span className="font-mono rounded-[2px] bg-line px-1.5 py-0.5 text-[10px] tracking-wider text-muted">
+              Soon
+            </span>
+          </span>
+          <span className="flex items-center gap-1.5 text-sm font-medium text-[#B5B9BE]">
+            For Schools
+            <span className="font-mono rounded-[2px] bg-line px-1.5 py-0.5 text-[10px] tracking-wider text-muted">
+              Soon
+            </span>
+          </span>
+        </nav>
+
+        <Link
+          href="/cohort"
+          className="rounded-[2px] bg-navy px-5 py-[11px] text-sm font-semibold text-white transition-colors hover:bg-navy-deep"
+        >
+          Join Cohort 01
+        </Link>
+      </div>
+    </header>
+  );
+}
