@@ -74,7 +74,7 @@ export default function SchoolPage() {
 
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             <div className="rounded-[3px] border border-line bg-surface p-8">
-              <div className="mb-3.5 font-mono text-[11px] text-brass">By end of JSS3</div>
+              <div className="mb-3.5 font-mono text-[11px] tracking-wide text-brass">By end of JSS3</div>
               <h3 className="mb-2.5 font-serif text-[22px] font-semibold text-navy-deep">
                 Every student can build a standard website
               </h3>
@@ -83,7 +83,7 @@ export default function SchoolPage() {
               </p>
             </div>
             <div className="rounded-[3px] border border-line bg-surface p-8">
-              <div className="mb-3.5 font-mono text-[11px] text-brass">By end of SSS3</div>
+              <div className="mb-3.5 font-mono text-[11px] tracking-wide text-brass">By end of SSS3</div>
               <h3 className="mb-2.5 font-serif text-[22px] font-semibold text-navy-deep">
                 Every student can build a standard app
               </h3>
@@ -141,7 +141,7 @@ export default function SchoolPage() {
               },
             ].map((f) => (
               <div key={f.n} className="bg-navy-deep p-8 pb-9 pl-[26px] pr-[26px] pt-8">
-                <div className="mb-[18px] flex h-8 w-8 items-center justify-center rounded-[2px] border border-brass font-mono text-[13px] text-brass">
+                <div className="mb-[18px] flex h-8 w-8 items-center justify-center rounded-[2px] border border-brass font-mono text-[13px] tracking-wide text-brass">
                   {f.n}
                 </div>
                 <h3 className="mb-2 font-sans text-[17px] font-semibold text-white">{f.title}</h3>

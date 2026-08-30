@@ -128,7 +128,7 @@ export default function Home() {
 
           <div className="flex flex-col gap-7">
             <div className="flex gap-[18px]">
-              <span className="shrink-0 pt-0.5 font-mono text-[13px] text-brass">01</span>
+              <span className="shrink-0 pt-0.5 font-mono text-[13px] tracking-wide text-brass">01</span>
               <div>
                 <h4 className="mb-1.5 text-base font-semibold text-white">Built live, corrected live</h4>
                 <p className="text-sm text-white/60">
@@ -138,7 +138,7 @@ export default function Home() {
               </div>
             </div>
             <div className="flex gap-[18px]">
-              <span className="shrink-0 pt-0.5 font-mono text-[13px] text-brass">02</span>
+              <span className="shrink-0 pt-0.5 font-mono text-[13px] tracking-wide text-brass">02</span>
               <div>
                 <h4 className="mb-1.5 text-base font-semibold text-white">Small by design</h4>
                 <p className="text-sm text-white/60">
@@ -148,7 +148,7 @@ export default function Home() {
               </div>
             </div>
             <div className="flex gap-[18px]">
-              <span className="shrink-0 pt-0.5 font-mono text-[13px] text-brass">03</span>
+              <span className="shrink-0 pt-0.5 font-mono text-[13px] tracking-wide text-brass">03</span>
               <div>
                 <h4 className="mb-1.5 text-base font-semibold text-white">One process. Many builds.</h4>
                 <p className="text-sm text-white/60">

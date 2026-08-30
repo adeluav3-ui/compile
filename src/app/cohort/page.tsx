@@ -48,7 +48,7 @@ export default function CohortPage() {
                 See the program
               </Link>
             </div>
-            <div className="mt-11 flex gap-7 font-mono text-xs text-muted">
+            <div className="mt-11 flex gap-7 font-mono text-xs tracking-wide text-muted">
               <div>
                 <strong className="mb-0.5 block font-sans text-sm font-bold text-navy-deep">Oct 3</strong>
                 Cohort starts
@@ -137,7 +137,7 @@ export default function CohortPage() {
               },
             ].map((item) => (
               <div key={item.idx} className="bg-surface p-9">
-                <div className="mb-4.5 font-mono text-xs text-brass">{item.idx}</div>
+                <div className="mb-4.5 font-mono text-xs tracking-wide text-brass">{item.idx}</div>
                 <h3 className="mb-2.5 font-serif text-[19px] font-semibold text-navy-deep">
                   {item.title}
                 </h3>
@@ -191,7 +191,7 @@ export default function CohortPage() {
                 key={item.wk}
                 className="rounded-[2px] border border-white/[0.14] p-5.5"
               >
-                <div className="mb-2.5 font-mono text-[11px] text-brass">{item.wk}</div>
+                <div className="mb-2.5 font-mono text-[11px] tracking-wide text-brass">{item.wk}</div>
                 <h4 className="mb-1.5 text-[15px] font-semibold text-white">{item.title}</h4>
                 <p className="text-[13px] text-white/60">{item.body}</p>
               </div>
@@ -226,7 +226,7 @@ export default function CohortPage() {
               <span className="absolute -top-[11px] left-8 rounded-[2px] bg-brass px-2.5 py-1 font-mono text-[10px] font-semibold tracking-[0.06em] text-navy-deep uppercase">
                 Early bird
               </span>
-              <div className="mb-1.5 font-mono text-xs text-muted">Before Sep 10, 2026</div>
+              <div className="mb-1.5 font-mono text-xs tracking-wide text-muted">Before Sep 10, 2026</div>
               <div className="mb-1 font-serif text-[44px] font-semibold text-navy-deep">
                 ₦50,000
               </div>
@@ -250,7 +250,7 @@ export default function CohortPage() {
 
             {/* Regular */}
             <div className="rounded-[3px] border border-line bg-surface p-9">
-              <div className="mb-1.5 font-mono text-xs text-muted">From Sep 11, 2026</div>
+              <div className="mb-1.5 font-mono text-xs tracking-wide text-muted">From Sep 11, 2026</div>
               <div className="mb-1 font-serif text-[44px] font-semibold text-navy-deep">
                 ₦70,000
               </div>
@@ -272,7 +272,7 @@ export default function CohortPage() {
               </button>
             </div>
           </div>
-          <p className="mt-5 text-center font-mono text-[11px] text-muted">
+          <p className="mt-5 text-center font-mono text-[11px] tracking-wide text-muted">
             Only 10 seats per cohort — regardless of when you apply.
           </p>
         </div>
@@ -305,7 +305,7 @@ export default function CohortPage() {
               }}
             >
               <div className="mb-3 font-serif text-[64px] font-semibold text-line">{"{ }"}</div>
-              <p className="font-mono text-xs text-muted" style={{ maxWidth: 260 }}>
+              <p className="font-mono text-xs tracking-wide text-muted" style={{ maxWidth: 260 }}>
                 NOTHING TO SHOW YET — THE MATERIAL IS STILL BEING BUILT, ON PURPOSE.
               </p>
             </div>

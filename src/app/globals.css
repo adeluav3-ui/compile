@@ -13,10 +13,17 @@
   --color-brass-soft: #EFE3C8;
   --color-line: #DFE1DA;
 
-  /* Fonts — Next.js injects --font-inter / --font-fraunces / --font-ibm-mono onto <html> */
+  /* Fonts — Next.js injects --font-inter / --font-fraunces onto <html> */
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-serif: var(--font-fraunces), ui-serif, Georgia, serif;
-  --font-mono: var(--font-ibm-mono), ui-monospace, monospace;
+  /* font-mono is repurposed as the label/eyebrow stack — Inter bold + tight tracking */
+  --font-mono: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* font-mono is repurposed as the label/eyebrow utility — bold Inter preserves
+   the label feel that IBM Plex Mono was providing through its monospace spacing */
+.font-mono {
+  font-weight: 700;
 }
 
 html {
