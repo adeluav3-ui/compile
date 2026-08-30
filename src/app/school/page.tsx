@@ -1,11 +1,10 @@
 import Link from "next/link";
 import { Metadata } from "next";
-import Footer from "@/components/Footer";
 
 export const metadata: Metadata = {
   title: "Compile for Schools — Compile",
   description:
-    "A full JSS1–SSS3 coding curriculum for Nigerian secondary schools. Video lessons, AI-assisted marking, and three dashboards — works offline on your school's network.",
+    "A full JSS1–SSS3 coding curriculum for Nigerian secondary schools. Lesson videos, live-graded practical exams, and dashboards — built to run even when your school's internet doesn't.",
 };
 
 export default function SchoolPage() {
@@ -14,48 +13,49 @@ export default function SchoolPage() {
       <SchoolNav />
 
       {/* HERO */}
-      <section className="bg-navy-deep py-[100px] text-white">
+      <section className="py-[88px] pb-[72px] text-center">
         <div className="mx-auto max-w-[1120px] px-8">
-          <div className="mx-auto max-w-[680px] text-center">
-            <span className="mb-5 block font-mono text-xs tracking-[0.1em] text-brass uppercase">
-              Compile for Schools
-            </span>
-            <h1 className="mb-6 font-serif text-[52px] font-semibold leading-[1.07] tracking-[-0.02em] text-white">
-              A coding curriculum your school can actually run.
-            </h1>
-            <p className="mb-9 text-[17px] leading-[1.6] text-white/65">
-              Full JSS1–SSS3 coverage. Lessons, practice questions, and practical exams — with
-              dashboards for students, teachers, and your admin. Works on your school&apos;s
-              local network even without internet.
-            </p>
-            <div className="flex flex-wrap justify-center gap-3.5">
-              <Link
-                href="#pricing"
-                className="rounded-[2px] bg-brass px-6 py-[11px] text-sm font-semibold text-navy-deep transition-opacity hover:opacity-90"
-              >
-                Book a demo for your school
-              </Link>
-              <Link
-                href="#outcomes"
-                className="rounded-[2px] border border-white/25 px-6 py-[11px] text-sm font-medium text-white/80 transition-colors hover:border-white/50 hover:text-white"
-              >
-                See the outcomes
-              </Link>
-            </div>
-            <div className="mt-12 flex flex-wrap justify-center gap-10 font-mono text-xs text-white/45">
-              <div>
-                <strong className="mb-1 block font-sans text-base font-bold text-white">JSS1–SSS3</strong>
-                Full curriculum coverage
+          <span className="mb-5 block font-mono text-xs tracking-[0.1em] text-brass uppercase">
+            Compile for Schools
+          </span>
+          <h1 className="mx-auto mb-[22px] max-w-[760px] font-serif text-[48px] font-semibold leading-[1.1] tracking-[-0.01em] text-navy-deep">
+            Every student leaves knowing how to build. Not just how to answer questions about it.
+          </h1>
+          <p className="mx-auto mb-8 max-w-[540px] text-[17px] text-muted">
+            A full JSS1–SSS3 coding curriculum with lesson videos, live-graded practical exams,
+            and dashboards for admins, teachers, and students — built to run even when your
+            school&apos;s internet doesn&apos;t.
+          </p>
+          <div className="mb-14 flex justify-center gap-3.5">
+            <Link
+              href="#pricing"
+              className="rounded-[2px] bg-navy px-5 py-[11px] text-sm font-semibold text-white transition-colors hover:bg-navy-deep"
+            >
+              Book a demo for your school
+            </Link>
+            <Link
+              href="#outcomes"
+              className="rounded-[2px] border border-line px-[18px] py-[11px] text-sm font-medium text-ink"
+            >
+              See the outcomes
+            </Link>
+          </div>
+
+          {/* Stat row */}
+          <div
+            className="mx-auto grid max-w-[820px] grid-cols-3 gap-px bg-line"
+            style={{ border: "1px solid var(--color-line)" }}
+          >
+            {[
+              { num: "JSS1–SSS3", label: "Full curriculum, one platform" },
+              { num: "Offline", label: "Runs on your school's local network" },
+              { num: "₦150k", label: "Flat monthly, per school" },
+            ].map((s) => (
+              <div key={s.num} className="bg-surface px-5 py-7 text-center">
+                <div className="mb-1 font-serif text-[32px] font-bold text-navy-deep">{s.num}</div>
+                <div className="text-xs text-muted">{s.label}</div>
               </div>
-              <div>
-                <strong className="mb-1 block font-sans text-base font-bold text-white">Offline</strong>
-                Works without internet
-              </div>
-              <div>
-                <strong className="mb-1 block font-sans text-base font-bold text-white">₦150k</strong>
-                Per school, per month
-              </div>
-            </div>
+            ))}
           </div>
         </div>
       </section>
@@ -63,57 +63,33 @@ export default function SchoolPage() {
       {/* OUTCOMES */}
       <section className="py-[88px]" id="outcomes">
         <div className="mx-auto max-w-[1120px] px-8">
-          <div className="mb-14 text-center">
+          <div className="mx-auto mb-12 max-w-[600px] text-center">
             <span className="mb-3 block font-mono text-xs tracking-[0.08em] text-brass uppercase">
-              What students leave with
+              What students actually leave with
             </span>
-            <h2 className="font-serif text-[34px] font-semibold text-navy-deep">
-              Real outcomes. Not just a syllabus completed.
+            <h2 className="font-serif text-[32px] font-semibold text-navy-deep">
+              Two real outcomes, not a certificate.
             </h2>
           </div>
 
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            <div className="rounded-[3px] border border-line bg-surface p-10">
-              <div className="mb-4 font-mono text-[11px] tracking-widest text-brass uppercase">
-                By end of JSS3
-              </div>
-              <h3 className="mb-3 font-serif text-[26px] font-semibold leading-[1.2] text-navy-deep">
-                Every student can build a standard website.
+            <div className="rounded-[3px] border border-line bg-surface p-8">
+              <div className="mb-3.5 font-mono text-[11px] text-brass">By end of JSS3</div>
+              <h3 className="mb-2.5 font-serif text-[22px] font-semibold text-navy-deep">
+                Every student can build a standard website
               </h3>
               <p className="text-sm text-muted">
-                HTML, CSS, and basic JavaScript — applied to a real site a student can point to
-                and say they built. Not a tutorial they followed. A project they own.
+                Structure, content, and a working site — not a memorized definition of what HTML is.
               </p>
-              <div className="mt-8 flex flex-col gap-2">
-                {["Structure a multi-page site", "Style it properly with CSS", "Add basic interactivity with JavaScript", "Deploy it live"].map((item) => (
-                  <div key={item} className="flex items-center gap-2.5 text-sm text-muted">
-                    <span className="shrink-0 text-brass">—</span>
-                    {item}
-                  </div>
-                ))}
-              </div>
             </div>
-
-            <div className="rounded-[3px] border border-navy bg-surface p-10 shadow-[0_16px_40px_-20px_rgba(27,53,94,0.22)]">
-              <div className="mb-4 font-mono text-[11px] tracking-widest text-brass uppercase">
-                By end of SSS3
-              </div>
-              <h3 className="mb-3 font-serif text-[26px] font-semibold leading-[1.2] text-navy-deep">
-                Every student can build a standard app.
+            <div className="rounded-[3px] border border-line bg-surface p-8">
+              <div className="mb-3.5 font-mono text-[11px] text-brass">By end of SSS3</div>
+              <h3 className="mb-2.5 font-serif text-[22px] font-semibold text-navy-deep">
+                Every student can build a standard app
               </h3>
               <p className="text-sm text-muted">
-                Backend logic, databases, user accounts — the kind of software that actually
-                does something. SSS3 students finish with a capstone project and a portfolio
-                ready for university or employment.
+                Real functionality — accounts, data, logic — building on everything from JSS1–JSS3.
               </p>
-              <div className="mt-8 flex flex-col gap-2">
-                {["Build a full-stack web application", "Work with databases and APIs", "Implement user authentication", "Present a portfolio-ready capstone"].map((item) => (
-                  <div key={item} className="flex items-center gap-2.5 text-sm text-muted">
-                    <span className="shrink-0 text-navy">—</span>
-                    {item}
-                  </div>
-                ))}
-              </div>
             </div>
           </div>
         </div>
@@ -122,50 +98,54 @@ export default function SchoolPage() {
       {/* FEATURES */}
       <section className="bg-navy-deep py-[88px]" id="features">
         <div className="mx-auto max-w-[1120px] px-8">
-          <div className="mb-14">
+          <div className="mx-auto mb-12 max-w-[600px] text-center">
             <span className="mb-3 block font-mono text-xs tracking-[0.08em] text-brass uppercase">
-              How it works
+              Built for how Nigerian schools actually run
             </span>
-            <h2 className="mb-3 font-serif text-[34px] font-semibold text-white">
-              Built for how Nigerian schools actually operate.
+            <h2 className="mb-3 font-serif text-[32px] font-semibold text-white">
+              Not a platform that assumes perfect internet.
             </h2>
-            <p className="max-w-[540px] text-base text-white/55">
-              Not a generic SaaS product bolted onto a school. Every feature was designed around
-              the specific constraints — power, internet, devices, and timetables — that every
-              secondary school in Nigeria deals with.
-            </p>
           </div>
 
-          <div className="grid grid-cols-1 gap-px bg-white/10 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-px bg-white/[0.12] md:grid-cols-3">
             {[
               {
+                n: "01",
                 title: "Works offline",
-                body: "Install once on the school server. Lessons, quizzes, and dashboards run on the local network — no internet required for students or teachers during class.",
+                body: "Lessons and videos run from your school's own local network — no dependence on classroom internet.",
               },
               {
+                n: "02",
                 title: "AI-assisted marking",
-                body: "Practical exam submissions go to AI first. Teachers see a suggested mark and a short summary of the work — they confirm, they don't redo it from scratch.",
+                body: "Practical exams get an AI first pass; teachers confirm or adjust — grading time drops without losing teacher oversight.",
               },
               {
-                title: "Results feed",
-                body: "Every student has a live results feed. Teachers see a class-level view. The school admin sees the whole school — all from the same data, no manual collation.",
+                n: "03",
+                title: "Results feed report cards",
+                body: "Every term's practical exam results are exportable and ready to drop straight into existing report cards.",
               },
               {
+                n: "04",
                 title: "Three dashboards",
-                body: "Student, teacher, and school admin — each role gets a dashboard with exactly what they need. No shared logins, no excess access, no configuration required.",
+                body: "Admins see the whole school. Teachers see their classes. Students see their own progress. Nobody's guessing.",
               },
               {
+                n: "05",
                 title: "Per-class syllabus",
-                body: "Each class follows a structured syllabus mapped to the full JSS1–SSS3 curriculum. Progress tracked per student, per subject, per lesson — automatically.",
+                body: "Spread the curriculum across years your way, or run every class through it together on one intensive track.",
               },
               {
+                n: "06",
                 title: "Built-in AI tutor",
-                body: "Students can ask the AI tutor questions about any lesson. It answers in context, keeps a record of gaps, and flags recurring confusion to the teacher.",
+                body: "Students can ask questions as they work — queued and answered even if it catches your school between connections.",
               },
             ].map((f) => (
-              <div key={f.title} className="bg-navy-deep p-8">
-                <h3 className="mb-3 text-base font-semibold text-white">{f.title}</h3>
-                <p className="text-sm leading-[1.7] text-white/55">{f.body}</p>
+              <div key={f.n} className="bg-navy-deep p-8 pb-9 pl-[26px] pr-[26px] pt-8">
+                <div className="mb-[18px] flex h-8 w-8 items-center justify-center rounded-[2px] border border-brass font-mono text-[13px] text-brass">
+                  {f.n}
+                </div>
+                <h3 className="mb-2 font-sans text-[17px] font-semibold text-white">{f.title}</h3>
+                <p className="text-[13px] leading-[1.7] text-white/60">{f.body}</p>
               </div>
             ))}
           </div>
@@ -175,55 +155,49 @@ export default function SchoolPage() {
       {/* PRICING */}
       <section className="py-[88px]" id="pricing">
         <div className="mx-auto max-w-[1120px] px-8">
-          <div className="mx-auto max-w-[560px] text-center">
+          <div className="mx-auto mb-12 max-w-[600px] text-center">
             <span className="mb-3 block font-mono text-xs tracking-[0.08em] text-brass uppercase">
               Pricing
             </span>
-            <h2 className="mb-3 font-serif text-[34px] font-semibold text-navy-deep">
-              One school. One price.
+            <h2 className="font-serif text-[32px] font-semibold text-navy-deep">
+              One flat price. Every student, every dashboard.
             </h2>
-            <p className="mb-12 text-base text-muted">
-              A single monthly subscription covers every student and teacher in your school.
-              No per-seat fees. No surprise add-ons.
-            </p>
+          </div>
 
-            <div className="rounded-[3px] border border-navy bg-surface p-10 text-left shadow-[0_20px_50px_-20px_rgba(27,53,94,0.25)]">
-              <div className="mb-1.5 font-mono text-xs text-muted">Per school, billed monthly</div>
-              <div className="mb-2 font-serif text-[52px] font-semibold text-navy-deep">
-                ₦150,000
-                <span className="font-sans text-xl font-normal text-muted"> /month</span>
-              </div>
-              <ul className="my-8 space-y-0">
-                {[
-                  "Full JSS1–SSS3 curriculum, all subjects",
-                  "Unlimited student and teacher accounts",
-                  "Student, teacher, and admin dashboards",
-                  "Offline operation on your school's local network",
-                  "AI-assisted marking for practical exam work",
-                  "Built-in AI tutor for students",
-                  "Live results feed and progress reports",
-                ].map((item) => (
-                  <li key={item} className="flex gap-3 border-t border-line py-3 text-sm text-muted">
-                    <span className="shrink-0 text-brass">—</span>
-                    {item}
-                  </li>
-                ))}
-              </ul>
-              <a
-                href="mailto:hello@compile.ng"
-                className="block w-full rounded-[2px] bg-navy py-[13px] text-center text-sm font-semibold text-white transition-colors hover:bg-navy-deep"
-              >
-                Book a demo
-              </a>
-              <p className="mt-4 text-center font-mono text-[11px] text-muted">
-                We&apos;ll schedule a walkthrough for your school before you commit to anything.
-              </p>
+          <div className="mx-auto max-w-[520px] rounded-[3px] border border-navy bg-surface p-10 text-center shadow-[0_16px_40px_-18px_rgba(27,53,94,0.25)]">
+            <div className="font-serif text-[44px] font-bold text-navy-deep">
+              ₦150,000<span className="font-sans text-[15px] font-medium text-muted">/month per school</span>
             </div>
+            <ul className="my-[26px] mb-[30px] text-left text-sm text-muted">
+              {[
+                "Full JSS1–SSS3 curriculum",
+                "Admin, teacher, and student dashboards",
+                "AI-assisted marking and student Q&A",
+                "Offline access via your school's local network",
+                "Termly practical exams with exportable results",
+              ].map((item, i) => (
+                <li key={i} className="flex gap-2.5 border-t border-line py-[9px] first:border-0">
+                  <span className="shrink-0 text-brass">—</span>
+                  {item}
+                </li>
+              ))}
+            </ul>
+            <a
+              href="mailto:hello@compile.ng"
+              className="block w-full rounded-[2px] bg-navy py-[11px] text-center text-sm font-semibold text-white transition-colors hover:bg-navy-deep"
+            >
+              Book a demo for your school
+            </a>
           </div>
         </div>
       </section>
 
-      <Footer />
+      {/* FOOTER */}
+      <footer className="border-t border-line py-12 text-center">
+        <p className="text-[13px] text-muted">
+          Compile for Schools — part of the Compile coding education platform.
+        </p>
+      </footer>
     </>
   );
 }
@@ -237,7 +211,7 @@ function SchoolNav() {
           Compile
         </Link>
 
-        <nav className="hidden items-center gap-9 md:flex">
+        <nav className="hidden items-center gap-8 md:flex">
           <Link href="#outcomes" className="text-sm font-medium text-muted transition-colors hover:text-navy-deep">
             Outcomes
           </Link>
@@ -249,12 +223,12 @@ function SchoolNav() {
           </Link>
         </nav>
 
-        <a
+        <Link
           href="#pricing"
           className="rounded-[2px] bg-navy px-5 py-[11px] text-sm font-semibold text-white transition-colors hover:bg-navy-deep"
         >
           Book a demo
-        </a>
+        </Link>
       </div>
     </header>
   );
