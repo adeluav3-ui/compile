@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 import WaitlistForm from "@/components/WaitlistForm";
 
@@ -12,7 +13,7 @@ export const metadata = {
 export default function CohortPage() {
   return (
     <>
-      <CohortNav />
+      <Nav />
 
       {/* HERO */}
       <section className="mx-auto max-w-[1120px] px-8 py-24">
@@ -224,7 +225,7 @@ export default function CohortPage() {
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             {/* Early bird */}
             <div className="relative rounded-[3px] border border-navy bg-surface p-9 shadow-[0_12px_32px_-16px_rgba(27,53,94,0.25)]">
-              <span className="absolute -top-[11px] left-8 rounded-[2px] bg-brass px-2.5 py-1 font-mono text-[10px] font-semibold tracking-[0.06em] text-navy-deep uppercase">
+              <span className="absolute -top-[11px] left-8 rounded-[2px] bg-brass px-2.5 py-1 font-mono text-[10px] tracking-[0.06em] text-navy-deep uppercase">
                 Early bird
               </span>
               <div className="mb-1.5 font-mono text-xs tracking-wide text-muted">Before Sep 10, 2026</div>
@@ -299,13 +300,20 @@ export default function CohortPage() {
             </div>
 
             <div
-              className="flex min-h-[280px] flex-col items-center justify-center rounded-[3px] border border-dashed border-line p-10 text-center"
+              className="relative flex min-h-[280px] flex-col items-center justify-center rounded-[3px] border border-dashed border-line p-10 text-center"
               style={{
                 background:
                   "repeating-linear-gradient(135deg, transparent, transparent 11px, #EAEBE7 11px, #EAEBE7 12px)",
               }}
             >
-              <div className="mb-3 font-serif text-[64px] font-semibold text-line">{"{ }"}</div>
+              <Image
+                src="/images/compile-icon-navy.svg"
+                alt=""
+                width={100}
+                height={110}
+                className="mb-5 h-24 w-auto opacity-10"
+                aria-hidden="true"
+              />
               <p className="font-mono text-xs tracking-wide text-muted" style={{ maxWidth: 260 }}>
                 NOTHING TO SHOW YET — THE MATERIAL IS STILL BEING BUILT, ON PURPOSE.
               </p>
@@ -316,49 +324,5 @@ export default function CohortPage() {
 
       <Footer />
     </>
-  );
-}
-
-function CohortNav() {
-  return (
-    <header className="sticky top-0 z-50 border-b border-line bg-paper/92 backdrop-blur-sm">
-      <div className="mx-auto flex h-[76px] max-w-[1120px] items-center justify-between px-8">
-        <Link href="/" className="flex items-center">
-          <Image
-            src="/images/compile-lockup-navy.svg"
-            alt="Compile"
-            width={110}
-            height={28}
-            priority
-            className="h-7 w-auto"
-          />
-        </Link>
-
-        <nav className="hidden items-center gap-9 md:flex">
-          <Link href="#program" className="text-sm font-medium text-muted transition-colors hover:text-navy-deep">
-            Cohort 01
-          </Link>
-          <Link href="#pricing" className="text-sm font-medium text-muted transition-colors hover:text-navy-deep">
-            Pricing
-          </Link>
-          <Link href="#individual" className="text-sm font-medium text-muted transition-colors hover:text-navy-deep">
-            Individual Course
-          </Link>
-          <span className="flex items-center gap-1.5 text-sm font-medium text-[#B5B9BE]">
-            For Schools
-            <span className="font-mono rounded-[2px] bg-line px-1.5 py-0.5 text-[10px] tracking-wider text-muted">
-              Soon
-            </span>
-          </span>
-        </nav>
-
-        <Link
-          href="#pricing"
-          className="rounded-[2px] bg-navy px-5 py-[11px] text-sm font-semibold text-white transition-colors hover:bg-navy-deep"
-        >
-          Apply now
-        </Link>
-      </div>
-    </header>
   );
 }

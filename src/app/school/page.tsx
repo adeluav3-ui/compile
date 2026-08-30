@@ -1,6 +1,8 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Metadata } from "next";
+import Nav from "@/components/Nav";
+import Footer from "@/components/Footer";
 
 export const metadata: Metadata = {
   title: "Compile for Schools — Compile",
@@ -11,7 +13,7 @@ export const metadata: Metadata = {
 export default function SchoolPage() {
   return (
     <>
-      <SchoolNav />
+      <Nav />
 
       {/* HERO */}
       <section className="py-[88px] pb-[72px] text-center">
@@ -193,50 +195,7 @@ export default function SchoolPage() {
         </div>
       </section>
 
-      {/* FOOTER */}
-      <footer className="border-t border-line py-12 text-center">
-        <p className="text-[13px] text-muted">
-          Compile for Schools — part of the Compile coding education platform.
-        </p>
-      </footer>
+      <Footer />
     </>
-  );
-}
-
-function SchoolNav() {
-  return (
-    <header className="sticky top-0 z-50 border-b border-line bg-paper/92 backdrop-blur-sm">
-      <div className="mx-auto flex h-[76px] max-w-[1120px] items-center justify-between px-8">
-        <Link href="/" className="flex items-center">
-          <Image
-            src="/images/compile-lockup-navy.svg"
-            alt="Compile"
-            width={110}
-            height={28}
-            priority
-            className="h-7 w-auto"
-          />
-        </Link>
-
-        <nav className="hidden items-center gap-8 md:flex">
-          <Link href="#outcomes" className="text-sm font-medium text-muted transition-colors hover:text-navy-deep">
-            Outcomes
-          </Link>
-          <Link href="#features" className="text-sm font-medium text-muted transition-colors hover:text-navy-deep">
-            How it works
-          </Link>
-          <Link href="#pricing" className="text-sm font-medium text-muted transition-colors hover:text-navy-deep">
-            Pricing
-          </Link>
-        </nav>
-
-        <Link
-          href="#pricing"
-          className="rounded-[2px] bg-navy px-5 py-[11px] text-sm font-semibold text-white transition-colors hover:bg-navy-deep"
-        >
-          Book a demo
-        </Link>
-      </div>
-    </header>
   );
 }

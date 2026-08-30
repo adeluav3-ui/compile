@@ -17,11 +17,11 @@ export default function Nav() {
         </Link>
 
         <nav className="hidden items-center gap-9 md:flex">
+          <Link href="/" className="text-sm font-medium text-muted transition-colors hover:text-navy-deep">
+            Home
+          </Link>
           <Link href="/cohort" className="text-sm font-medium text-muted transition-colors hover:text-navy-deep">
             Cohort 01
-          </Link>
-          <Link href="/#programs" className="text-sm font-medium text-muted transition-colors hover:text-navy-deep">
-            Programs
           </Link>
           <Link href="/individual" className="flex items-center gap-1.5 text-sm font-medium text-muted transition-colors hover:text-navy-deep">
             Individual
