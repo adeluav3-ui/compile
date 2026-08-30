@@ -25,7 +25,7 @@ const ibmPlexMono = IBM_Plex_Mono({
 export const metadata: Metadata = {
   title: "Compile — Learn by building real software",
   description:
-    "A coding education studio. Cohort, individual, and school programs — one craft, taught by building.",
+    "A coding education studio. Cohort, individual, and school programs — everything compiles.",
 };
 
 export default function RootLayout({

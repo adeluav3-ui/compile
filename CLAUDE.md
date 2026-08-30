@@ -64,7 +64,7 @@ A person could plausibly hold more than one role over time (e.g. a cohort alum l
 ## Brand
 
 - **Name:** Compile
-- **Positioning:** software as a craft, taught by building — live correction over passive watching, small cohorts over crowds
+- **Positioning:** separate skills assembled into working software through live correction — small cohorts over crowds, correction over passive watching
 - **Note:** an external designer is finalizing the logo and has started with **blue** as a primary color; exact shade not yet locked. Use the navy below as the working primary until she delivers final brand colors, then swap the token — don't rebuild the palette structure.
 
 ### Color tokens (working palette, subject to designer's final blue)
@@ -83,13 +83,13 @@ A person could plausibly hold more than one role over time (e.g. a cohort alum l
 
 ### Type
 
-- Display/headings: **Fraunces** (serif, characterful — carries the "craft/mastery" feel)
+- Display/headings: **Fraunces** (serif, characterful — carries the precision and weight the brand needs)
 - Body: **Inter**
 - Labels, code, data, cohort numbering: **IBM Plex Mono**
 
 ### Signature device
 
-Each cohort batch gets a "guild stamp" — a numbered badge (e.g. `01 — Web & Platforms`) used consistently across the site. This is structural, not decorative: cohorts really are discrete numbered batches with distinct focuses, and the stamp system needs to extend cleanly to Cohort 02, 03, etc. without a redesign.
+Each cohort batch gets a "build mark" — a numbered badge (e.g. `01 — Web & Platforms`) used consistently across the site. This is structural, not decorative: cohorts really are discrete numbered batches with distinct focuses, and the build mark system needs to extend cleanly to Cohort 02, 03, etc. without a redesign.
 
 Reference mockups (attached separately / already delivered): `compile-home.html`, `compile-cohort.html`. Match their layout, spacing, and component patterns — they are the approved visual direction, not just inspiration.
 

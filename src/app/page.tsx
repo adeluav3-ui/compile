@@ -14,13 +14,13 @@ export default function Home() {
             Learn by shipping, not by watching
           </span>
           <h1 className="mx-auto mb-6 max-w-[820px] font-serif text-[56px] font-semibold leading-[1.08] tracking-[-0.02em] text-navy-deep">
-            Software is a craft.<br />We teach it like{" "}
-            <em className="not-italic text-steel">one</em>.
+            Skills don&apos;t add up on their own.<br />They{" "}
+            <em className="not-italic text-steel">compile</em>.
           </h1>
           <p className="mx-auto mb-9 max-w-[520px] text-[17px] text-muted">
-            Compile is a coding education studio built around one idea: you learn to build by
-            building — with someone correcting your work as you go, not a library you&apos;re left
-            alone with.
+            Compile is a coding education studio built around one idea: separate skills — syntax,
+            logic, structure — don&apos;t produce working software until someone helps you put them
+            together.
           </p>
           <div className="flex justify-center gap-3.5">
             <Link
@@ -47,7 +47,7 @@ export default function Home() {
               Three ways in
             </span>
             <h2 className="font-serif text-[30px] font-semibold text-navy-deep">
-              One craft, three doors.
+              Three programs. One process.
             </h2>
           </div>
 
@@ -119,10 +119,10 @@ export default function Home() {
         <div className="mx-auto grid max-w-[1120px] grid-cols-1 items-center gap-16 px-8 md:grid-cols-[0.8fr_1.2fr]">
           <div>
             <span className="mb-4 block font-mono text-xs tracking-[0.08em] text-brass uppercase">
-              Why &ldquo;craft&rdquo;
+              Why &ldquo;compile&rdquo;
             </span>
             <h2 className="font-serif text-[32px] font-semibold leading-[1.2] text-white">
-              A craftsman doesn&apos;t learn from a manual. They learn at someone&apos;s side.
+              Code doesn&apos;t compile in isolation. Neither does the person writing it.
             </h2>
           </div>
 
@@ -150,7 +150,7 @@ export default function Home() {
             <div className="flex gap-[18px]">
               <span className="shrink-0 pt-0.5 font-mono text-[13px] text-brass">03</span>
               <div>
-                <h4 className="mb-1.5 text-base font-semibold text-white">One craft, many disciplines</h4>
+                <h4 className="mb-1.5 text-base font-semibold text-white">One process. Many builds.</h4>
                 <p className="text-sm text-white/60">
                   Web today, mobile and games next, then AI — the same live, build-first method
                   applied to whatever you want to make.

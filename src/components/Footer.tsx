@@ -10,7 +10,7 @@ export default function Footer() {
             Compile
           </div>
           <p className="mt-3 text-sm text-muted">
-            A coding education studio. Cohort, individual, and school programs — one craft, taught by building.
+            A coding education studio. Cohort, individual, and school programs — everything compiles.
           </p>
         </div>
 
