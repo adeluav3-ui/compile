@@ -47,6 +47,17 @@ export default function Footer() {
                 Book a demo
               </Link>
             </div>
+            <div>
+              <span className="mb-3.5 block font-mono text-xs tracking-widest text-muted uppercase">
+                Support
+              </span>
+              <Link href="/support" className="mb-2.5 block text-sm text-ink">
+                Help & Support
+              </Link>
+              <a href="mailto:hello@compile.ng" className="mb-2.5 block text-sm text-[#B5B9BE]">
+                hello@compile.ng
+              </a>
+            </div>
           </div>
         </div>
       </div>
