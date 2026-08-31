@@ -169,7 +169,7 @@ export default function ReserveButton({
     }
 
     if (!paystackKey) {
-      setErrorMsg("Payment is not configured yet. Contact hello@compile.ng.");
+      setErrorMsg("Payment is not configured yet. Contact compile100@gmail.com.");
       updateStatus("open");
       return;
     }
@@ -197,14 +197,14 @@ export default function ReserveButton({
           } else {
             setErrorMsg(
               vData.error ??
-                "Payment could not be confirmed. Contact hello@compile.ng with your payment reference."
+                "Payment could not be confirmed. Contact compile100@gmail.com with your payment reference."
             );
             updateStatus("open");
           }
         })
         .catch(() => {
           setErrorMsg(
-            "Network error during confirmation. Contact hello@compile.ng with your payment reference."
+            "Network error during confirmation. Contact compile100@gmail.com with your payment reference."
           );
           updateStatus("open");
         });

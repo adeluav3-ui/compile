@@ -12,11 +12,11 @@ export const metadata: Metadata = {
 const faqs = [
   {
     q: "I paid but wasn't taken to the WhatsApp group.",
-    a: "The redirect happens immediately after payment confirms. If it didn't work — tab closed too early, browser blocked the redirect, anything — email us at hello@compile.ng with the email you used and your payment reference. We'll get you in manually.",
+    a: "The redirect happens immediately after payment confirms. If it didn't work — tab closed too early, browser blocked the redirect, anything — email us at compile100@gmail.com with the email you used and your payment reference. We'll get you in manually.",
   },
   {
     q: "I want a refund.",
-    a: "Email hello@compile.ng with your full name, payment email, and Paystack reference number. We process refund requests within 5 business days.",
+    a: "Email compile100@gmail.com with your full name, payment email, and Paystack reference number. We process refund requests within 5 business days.",
   },
   {
     q: "My payment went through but something feels wrong.",
@@ -115,10 +115,10 @@ export default function SupportPage() {
                 record. Include your payment reference if it&apos;s transaction-related.
               </p>
               <a
-                href="mailto:hello@compile.ng"
+                href="mailto:compile100@gmail.com"
                 className="inline-flex items-center gap-2 text-sm font-semibold text-navy hover:text-navy-deep"
               >
-                hello@compile.ng →
+                compile100@gmail.com →
               </a>
               <p className="mt-2 text-xs text-muted">We reply within 1 business day</p>
             </div>
@@ -163,10 +163,10 @@ export default function SupportPage() {
               </a>{" "}
               or email{" "}
               <a
-                href="mailto:hello@compile.ng"
+                href="mailto:compile100@gmail.com"
                 className="font-medium text-navy underline underline-offset-2"
               >
-                hello@compile.ng
+                compile100@gmail.com
               </a>{" "}
               — we&apos;ll get back to you.
             </p>

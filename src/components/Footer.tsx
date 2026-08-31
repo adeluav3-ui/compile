@@ -54,8 +54,8 @@ export default function Footer() {
               <Link href="/support" className="mb-2.5 block text-sm text-ink">
                 Help & Support
               </Link>
-              <a href="mailto:hello@compile.ng" className="mb-2.5 block text-sm text-[#B5B9BE]">
-                hello@compile.ng
+              <a href="mailto:compile100@gmail.com" className="mb-2.5 block text-sm text-[#B5B9BE]">
+                compile100@gmail.com
               </a>
             </div>
           </div>

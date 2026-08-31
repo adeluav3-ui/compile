@@ -186,7 +186,7 @@ export default function SchoolPage() {
               ))}
             </ul>
             <a
-              href="mailto:hello@compile.ng"
+              href="mailto:compile100@gmail.com"
               className="block w-full rounded-[2px] bg-navy py-[11px] text-center text-sm font-semibold text-white transition-colors hover:bg-navy-deep"
             >
               Book a demo for your school
