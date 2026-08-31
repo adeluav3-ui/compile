@@ -81,7 +81,11 @@ export async function POST(req: NextRequest) {
     reference,
     amountKobo,
     email,
-    // Returned server-side so the client never needs NEXT_PUBLIC_ baked at build time
-    paystackKey: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY ?? "",
+    // Read whichever name the environment uses (local vs Vercel naming differs)
+    paystackKey:
+      process.env.PAYSTACK_PUBLIC_KEY ??
+      process.env.NEXT_PAYSTACK_PUBLIC_KEY ??
+      process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY ??
+      "",
   });
 }
