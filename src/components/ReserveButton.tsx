@@ -20,6 +20,7 @@ declare global {
 
 type Status =
   | "idle"
+  | "earlyBirdEnded"
   | "open"
   | "submitting"
   | "paying"
@@ -31,12 +32,15 @@ interface Props {
   seatsLeft: number;
   label: string;
   variant?: "primary" | "secondary";
+  /** Pass false after Sep 10 for the early-bird card so we can warn the user */
+  isEarlyBird?: boolean;
 }
 
 export default function ReserveButton({
   seatsLeft,
   label,
   variant = "primary",
+  isEarlyBird = true,
 }: Props) {
   const [status, setStatus] = useState<Status>("idle");
   const [errorMsg, setErrorMsg] = useState("");
@@ -79,10 +83,40 @@ export default function ReserveButton({
     );
   }
 
+  if (status === "earlyBirdEnded") {
+    return (
+      <div className="space-y-3">
+        <div className="rounded-[2px] border border-line bg-[#FFFBEB] px-4 py-3 text-sm text-[#92400E]">
+          <strong className="font-semibold">Early bird pricing has ended.</strong> The
+          September 10 deadline has passed. You can still reserve your spot at the
+          regular price of ₦70,000.
+        </div>
+        <button
+          onClick={() => updateStatus("open")}
+          className="block w-full rounded-[2px] bg-navy py-[11px] text-center text-sm font-semibold text-white transition-colors hover:bg-navy-deep"
+        >
+          Reserve at ₦70,000 →
+        </button>
+        <button
+          onClick={() => updateStatus("idle")}
+          className="w-full text-center text-xs text-muted hover:text-ink"
+        >
+          Cancel
+        </button>
+      </div>
+    );
+  }
+
   if (status === "idle") {
     return (
       <button
-        onClick={() => updateStatus("open")}
+        onClick={() => {
+          if (variant === "primary" && !isEarlyBird) {
+            updateStatus("earlyBirdEnded");
+          } else {
+            updateStatus("open");
+          }
+        }}
         className={
           isPrimary
             ? "block w-full rounded-[2px] bg-navy py-[11px] text-center text-sm font-semibold text-white transition-colors hover:bg-navy-deep"

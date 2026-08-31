@@ -7,7 +7,7 @@ import ReserveButton from "@/components/ReserveButton";
 import { db } from "@/db";
 import { cohorts, cohortRegistrations } from "@/db/schema";
 import { eq, and, count } from "drizzle-orm";
-import { COHORT_01_NUMBER, SEAT_CAP } from "@/lib/cohort";
+import { COHORT_01_NUMBER, SEAT_CAP, isEarlyBirdActive } from "@/lib/cohort";
 
 export const metadata = {
   title: "Cohort 01: Web & Platforms — Compile",
@@ -40,6 +40,7 @@ async function getSeatsLeft(): Promise<number> {
 
 export default async function CohortPage() {
   const seatsLeft = await getSeatsLeft();
+  const earlyBird = isEarlyBirdActive();
   return (
     <>
       <Nav />
@@ -274,7 +275,7 @@ export default async function CohortPage() {
                   </li>
                 ))}
               </ul>
-              <ReserveButton seatsLeft={seatsLeft} label="Reserve at ₦50,000" variant="primary" />
+              <ReserveButton seatsLeft={seatsLeft} label="Reserve at ₦50,000" variant="primary" isEarlyBird={earlyBird} />
             </div>
 
             {/* Regular */}
