@@ -133,22 +133,19 @@ export default function ReserveButton({
 
     updateStatus("paying");
 
-    const handler = window.PaystackPop.setup({
-      key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY!,
-      email,
-      amount: amountKobo,
-      ref: reference,
-      callback: async (response) => {
-        updateStatus("verifying");
+    // Paystack's v1 inline.js validates callback with Object.prototype.toString,
+    // which returns [object AsyncFunction] for async arrows — failing its check.
+    // Wrap the async work in a plain sync function to pass validation.
+    function onPaymentComplete(response: { reference: string }) {
+      updateStatus("verifying");
 
-        try {
-          const vRes = await fetch("/api/payments/verify", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ reference: response.reference }),
-          });
-          const vData = await vRes.json();
-
+      fetch("/api/payments/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reference: response.reference }),
+      })
+        .then((vRes) => vRes.json())
+        .then((vData) => {
           if (vData.ok && vData.redirectUrl) {
             updateStatus("redirecting");
             window.location.href = vData.redirectUrl;
@@ -161,13 +158,21 @@ export default function ReserveButton({
             );
             updateStatus("open");
           }
-        } catch {
+        })
+        .catch(() => {
           setErrorMsg(
             "Network error during confirmation. Contact hello@compile.ng with your payment reference."
           );
           updateStatus("open");
-        }
-      },
+        });
+    }
+
+    const handler = window.PaystackPop.setup({
+      key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY!,
+      email,
+      amount: amountKobo,
+      ref: reference,
+      callback: onPaymentComplete,
       onClose: () => {
         if (statusRef.current === "paying") {
           updateStatus("open");
