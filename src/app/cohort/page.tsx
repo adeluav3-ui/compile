@@ -3,6 +3,11 @@ import Image from "next/image";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 import WaitlistForm from "@/components/WaitlistForm";
+import ReserveButton from "@/components/ReserveButton";
+import { db } from "@/db";
+import { cohorts, cohortRegistrations } from "@/db/schema";
+import { eq, and, count } from "drizzle-orm";
+import { COHORT_01_NUMBER, SEAT_CAP } from "@/lib/cohort";
 
 export const metadata = {
   title: "Cohort 01: Web & Platforms — Compile",
@@ -10,7 +15,31 @@ export const metadata = {
     "A 10-week live cohort where you build real web apps, websites, and platforms — with an instructor correcting your work in real time.",
 };
 
-export default function CohortPage() {
+async function getSeatsLeft(): Promise<number> {
+  try {
+    const [cohort] = await db
+      .select()
+      .from(cohorts)
+      .where(eq(cohorts.number, COHORT_01_NUMBER));
+    if (!cohort) return SEAT_CAP;
+
+    const [{ total }] = await db
+      .select({ total: count() })
+      .from(cohortRegistrations)
+      .where(
+        and(
+          eq(cohortRegistrations.cohortId, cohort.id),
+          eq(cohortRegistrations.status, "paid")
+        )
+      );
+    return Math.max(0, SEAT_CAP - (total ?? 0));
+  } catch {
+    return SEAT_CAP;
+  }
+}
+
+export default async function CohortPage() {
+  const seatsLeft = await getSeatsLeft();
   return (
     <>
       <Nav />
@@ -245,9 +274,7 @@ export default function CohortPage() {
                   </li>
                 ))}
               </ul>
-              <button className="block w-full rounded-[2px] bg-navy py-[11px] text-sm font-semibold text-white text-center transition-colors hover:bg-navy-deep">
-                Reserve at ₦50,000
-              </button>
+              <ReserveButton seatsLeft={seatsLeft} label="Reserve at ₦50,000" variant="primary" />
             </div>
 
             {/* Regular */}
@@ -269,9 +296,7 @@ export default function CohortPage() {
                   </li>
                 ))}
               </ul>
-              <button className="block w-full rounded-[2px] border border-line py-[11px] text-sm font-medium text-ink text-center">
-                Reserve at ₦70,000
-              </button>
+              <ReserveButton seatsLeft={seatsLeft} label="Reserve at ₦70,000" variant="secondary" />
             </div>
           </div>
           <p className="mt-5 text-center font-mono text-[11px] tracking-wide text-muted">

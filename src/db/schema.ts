@@ -142,6 +142,23 @@ export const payments = pgTable("payments", {
 });
 
 // ---------------------------------------------------------------------------
+// Cohort Registrations — payment record, no Supabase auth dependency
+// ---------------------------------------------------------------------------
+
+export const cohortRegistrations = pgTable("cohort_registrations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  cohortId: uuid("cohort_id").notNull().references(() => cohorts.id),
+  email: text("email").notNull(),
+  fullName: text("full_name").notNull(),
+  whatsapp: text("whatsapp"),
+  paystackReference: text("paystack_reference").notNull().unique(),
+  amountKobo: integer("amount_kobo").notNull(),
+  status: paymentStatusEnum("status").notNull().default("pending"),
+  paidAt: timestamp("paid_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+// ---------------------------------------------------------------------------
 // Waitlist — email + WhatsApp captures for Individual Course and School Edition
 // ---------------------------------------------------------------------------
 
