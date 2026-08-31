@@ -131,6 +131,13 @@ export default function ReserveButton({
       return;
     }
 
+    const paystackKey = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY;
+    if (!paystackKey) {
+      setErrorMsg("Payment is not configured yet. Contact hello@compile.ng.");
+      updateStatus("open");
+      return;
+    }
+
     updateStatus("paying");
 
     // Paystack's v1 inline.js validates callback with Object.prototype.toString,
@@ -168,10 +175,11 @@ export default function ReserveButton({
     }
 
     const handler = window.PaystackPop.setup({
-      key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY!,
+      key: paystackKey,
       email,
-      amount: amountKobo,
+      amount: Math.round(Number(amountKobo)), // guard: must be plain integer kobo
       ref: reference,
+      currency: "NGN",
       callback: onPaymentComplete,
       onClose: () => {
         if (statusRef.current === "paying") {
