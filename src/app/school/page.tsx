@@ -16,12 +16,12 @@ export default function SchoolPage() {
       <Nav />
 
       {/* HERO */}
-      <section className="py-[88px] pb-[72px] text-center">
-        <div className="mx-auto max-w-[1120px] px-8">
+      <section className="py-14 pb-12 text-center md:py-[88px] md:pb-[72px]">
+        <div className="mx-auto max-w-[1120px] px-6 md:px-8">
           <span className="mb-5 block font-mono text-xs tracking-[0.1em] text-brass uppercase">
             Compile for Schools
           </span>
-          <h1 className="mx-auto mb-[22px] max-w-[760px] font-serif text-[48px] font-semibold leading-[1.1] tracking-[-0.01em] text-navy-deep">
+          <h1 className="mx-auto mb-[22px] max-w-[760px] font-serif text-[32px] font-semibold leading-[1.1] tracking-[-0.01em] text-navy-deep md:text-[48px]">
             Every student leaves knowing how to build. Not just how to answer questions about it.
           </h1>
           <p className="mx-auto mb-8 max-w-[540px] text-[17px] text-muted">
@@ -46,7 +46,7 @@ export default function SchoolPage() {
 
           {/* Stat row */}
           <div
-            className="mx-auto grid max-w-[820px] grid-cols-3 gap-px bg-line"
+            className="mx-auto grid max-w-[820px] grid-cols-1 gap-px bg-line sm:grid-cols-3"
             style={{ border: "1px solid var(--color-line)" }}
           >
             {[

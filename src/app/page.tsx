@@ -8,21 +8,21 @@ export default function Home() {
       <Nav />
 
       {/* HERO */}
-      <section className="py-[110px] text-center">
-        <div className="mx-auto max-w-[1120px] px-8">
+      <section className="py-16 text-center md:py-[110px]">
+        <div className="mx-auto max-w-[1120px] px-6 md:px-8">
           <span className="mb-5 block font-mono text-xs tracking-[0.1em] text-brass uppercase">
             Learn by shipping, not by watching
           </span>
-          <h1 className="mx-auto mb-6 max-w-[820px] font-serif text-[56px] font-semibold leading-[1.08] tracking-[-0.02em] text-navy-deep">
+          <h1 className="mx-auto mb-6 max-w-[820px] font-serif text-[38px] font-semibold leading-[1.1] tracking-[-0.02em] text-navy-deep md:text-[56px] md:leading-[1.08]">
             Skills don&apos;t add up on their own.<br />They{" "}
             <em className="not-italic text-steel">compile</em>.
           </h1>
-          <p className="mx-auto mb-9 max-w-[520px] text-[17px] text-muted">
+          <p className="mx-auto mb-9 max-w-[520px] text-base text-muted md:text-[17px]">
             Compile is a coding education studio built around one idea: separate skills — syntax,
             logic, structure — don&apos;t produce working software until someone helps you put them
             together.
           </p>
-          <div className="flex justify-center gap-3.5">
+          <div className="flex flex-wrap justify-center gap-3">
             <Link
               href="/cohort"
               className="rounded-[2px] bg-navy px-5 py-[11px] text-sm font-semibold text-white transition-colors hover:bg-navy-deep"
@@ -40,20 +40,20 @@ export default function Home() {
       </section>
 
       {/* THREE PATHS */}
-      <section className="pb-24" id="programs">
-        <div className="mx-auto max-w-[1120px] px-8">
-          <div className="mx-auto mb-12 max-w-[600px] text-center">
+      <section className="pb-20 md:pb-24" id="programs">
+        <div className="mx-auto max-w-[1120px] px-6 md:px-8">
+          <div className="mx-auto mb-10 max-w-[600px] text-center md:mb-12">
             <span className="mb-3 block font-mono text-xs tracking-[0.08em] text-brass uppercase">
               Three ways in
             </span>
-            <h2 className="font-serif text-[30px] font-semibold text-navy-deep">
+            <h2 className="font-serif text-[26px] font-semibold text-navy-deep md:text-[30px]">
               Three programs. One process.
             </h2>
           </div>
 
           <div className="grid grid-cols-1 gap-5 md:grid-cols-[1.15fr_1fr_1fr]">
             {/* Cohort — live */}
-            <div className="flex flex-col rounded-[3px] border border-navy bg-surface p-8 shadow-[0_16px_36px_-18px_rgba(27,53,94,0.28)]">
+            <div className="flex flex-col rounded-[3px] border border-navy bg-surface p-7 shadow-[0_16px_36px_-18px_rgba(27,53,94,0.28)] md:p-8">
               <span className="mb-5 inline-flex w-fit items-center gap-1.5 rounded-[2px] bg-[#E4EEE6] px-[9px] py-1 font-mono text-[10px] tracking-[0.06em] text-[#2E6E45] uppercase">
                 <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#2E6E45]" />
                 Live — applications open
@@ -72,7 +72,7 @@ export default function Home() {
             </div>
 
             {/* Individual — soon */}
-            <div className="flex flex-col rounded-[3px] border border-line bg-surface p-8">
+            <div className="flex flex-col rounded-[3px] border border-line bg-surface p-7 md:p-8">
               <span className="mb-5 inline-flex w-fit items-center rounded-[2px] bg-line px-[9px] py-1 font-mono text-[10px] tracking-[0.06em] text-muted uppercase">
                 Coming soon
               </span>
@@ -92,7 +92,7 @@ export default function Home() {
             </div>
 
             {/* School Edition — soon */}
-            <div className="flex flex-col rounded-[3px] border border-line bg-surface p-8">
+            <div className="flex flex-col rounded-[3px] border border-line bg-surface p-7 md:p-8">
               <span className="mb-5 inline-flex w-fit items-center rounded-[2px] bg-line px-[9px] py-1 font-mono text-[10px] tracking-[0.06em] text-muted uppercase">
                 Coming soon
               </span>
@@ -115,13 +115,13 @@ export default function Home() {
       </section>
 
       {/* PHILOSOPHY */}
-      <section className="bg-navy-deep py-[90px] text-white">
-        <div className="mx-auto grid max-w-[1120px] grid-cols-1 items-center gap-16 px-8 md:grid-cols-[0.8fr_1.2fr]">
+      <section className="bg-navy-deep py-16 text-white md:py-[90px]">
+        <div className="mx-auto grid max-w-[1120px] grid-cols-1 items-start gap-10 px-6 md:grid-cols-[0.8fr_1.2fr] md:items-center md:gap-16 md:px-8">
           <div>
             <span className="mb-4 block font-mono text-xs tracking-[0.08em] text-brass uppercase">
               Why &ldquo;compile&rdquo;
             </span>
-            <h2 className="font-serif text-[32px] font-semibold leading-[1.2] text-white">
+            <h2 className="font-serif text-[26px] font-semibold leading-[1.2] text-white md:text-[32px]">
               Code doesn&apos;t compile in isolation. Neither does the person writing it.
             </h2>
           </div>

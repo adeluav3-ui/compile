@@ -16,8 +16,8 @@ export default function CohortPage() {
       <Nav />
 
       {/* HERO */}
-      <section className="mx-auto max-w-[1120px] px-8 py-24">
-        <div className="grid grid-cols-1 items-center gap-16 md:grid-cols-[1.1fr_0.9fr]">
+      <section className="mx-auto max-w-[1120px] px-6 py-14 md:px-8 md:py-24">
+        <div className="grid grid-cols-1 items-center gap-12 md:grid-cols-[1.1fr_0.9fr] md:gap-16">
           <div>
             <div className="mb-7 inline-flex items-center gap-2.5 rounded-[2px] border border-navy px-3 py-1.5">
               <span className="rounded-[1px] bg-navy px-1.5 py-0.5 font-mono text-[11px] text-white">
@@ -27,7 +27,7 @@ export default function CohortPage() {
                 Web & Platforms Cohort
               </span>
             </div>
-            <h1 className="mb-5 font-serif text-[52px] font-semibold leading-[1.06] tracking-[-0.02em] text-navy-deep">
+            <h1 className="mb-5 font-serif text-[36px] font-semibold leading-[1.1] tracking-[-0.02em] text-navy-deep md:text-[52px] md:leading-[1.06]">
               Stop learning to code.<br />Start{" "}
               <em className="not-italic text-steel">shipping</em> it.
             </h1>
@@ -166,7 +166,7 @@ export default function CohortPage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-5 md:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
             {[
               {
                 wk: "Wk 1–2",

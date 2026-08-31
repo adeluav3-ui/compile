@@ -16,13 +16,13 @@ export default function IndividualPage() {
     <>
       <Nav />
 
-      <section className="mx-auto max-w-[1120px] px-8 py-24">
-        <div className="grid grid-cols-1 items-center gap-16 md:grid-cols-[1fr_1fr]">
+      <section className="mx-auto max-w-[1120px] px-6 py-14 md:px-8 md:py-24">
+        <div className="grid grid-cols-1 items-center gap-12 md:grid-cols-[1fr_1fr] md:gap-16">
           <div>
             <span className="mb-5 inline-block rounded-[2px] border border-line px-2.5 py-[5px] font-mono text-[11px] tracking-[0.06em] text-muted uppercase">
               Not open yet
             </span>
-            <h1 className="mb-5 font-serif text-[48px] font-semibold leading-[1.08] tracking-[-0.02em] text-navy-deep">
+            <h1 className="mb-5 font-serif text-[34px] font-semibold leading-[1.1] tracking-[-0.02em] text-navy-deep md:text-[48px] md:leading-[1.08]">
               The self-paced course.<br />On its way.
             </h1>
             <p className="mb-4 text-[17px] text-muted">
