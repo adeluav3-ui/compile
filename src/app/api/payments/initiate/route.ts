@@ -77,5 +77,11 @@ export async function POST(req: NextRequest) {
     status: "pending",
   });
 
-  return NextResponse.json({ reference, amountKobo, email });
+  return NextResponse.json({
+    reference,
+    amountKobo,
+    email,
+    // Returned server-side so the client never needs NEXT_PUBLIC_ baked at build time
+    paystackKey: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY ?? "",
+  });
 }

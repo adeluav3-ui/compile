@@ -109,6 +109,7 @@ export default function ReserveButton({
 
     let reference: string;
     let amountKobo: number;
+    let paystackKey: string;
 
     try {
       const res = await fetch("/api/payments/initiate", {
@@ -126,13 +127,13 @@ export default function ReserveButton({
 
       reference = data.reference;
       amountKobo = data.amountKobo;
+      paystackKey = data.paystackKey ?? "";
     } catch {
       setErrorMsg("Network error. Please check your connection and try again.");
       updateStatus("open");
       return;
     }
 
-    const paystackKey = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY;
     if (!paystackKey) {
       setErrorMsg("Payment is not configured yet. Contact hello@compile.ng.");
       updateStatus("open");
