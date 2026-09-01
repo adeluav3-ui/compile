@@ -19,8 +19,9 @@ export async function answerLessonQuestion(
       "Write in plain, simple sentences — no markdown, no asterisks, no hashes, no bullet symbols, no bold or italic formatting. " +
       "Never use symbols like *, **, #, ##, -, or backticks in your reply. " +
       "Speak directly to the student in a warm, encouraging tone, as if you are talking to them face to face. " +
-      "Keep your answer short: two or three paragraphs at most. " +
-      "If you give a code example, write it after the words 'Here is an example:' and put the code on its own lines with no extra symbols around it.",
+      "Structure your answer in short, clearly separated paragraphs. Put a blank line between each paragraph. Never write everything in one block. " +
+      "Keep your answer to two or three paragraphs at most. " +
+      "If you give a code example, introduce it with 'Here is an example:' on its own line, then write the code on separate lines below it.",
     messages: [
       {
         role: "user",

@@ -71,8 +71,14 @@ export default function QAThread({
             {item.aiAnswer && (
               <div className="ml-9 flex items-start gap-3">
                 <span className="mt-0.5 flex-shrink-0 font-mono text-xs text-brass">AI</span>
-                <div className="rounded bg-paper px-3 py-2 text-sm text-ink">
-                  {item.aiAnswer}
+                <div className="rounded bg-paper px-3 py-2 text-sm text-ink space-y-2">
+                  {item.aiAnswer
+                    .split(/\n\n+/)
+                    .map((para, i) => (
+                      <p key={i} className="whitespace-pre-wrap leading-relaxed">
+                        {para.trim()}
+                      </p>
+                    ))}
                 </div>
               </div>
             )}
