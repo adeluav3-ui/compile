@@ -411,7 +411,7 @@ export const lessonQuestions = pgTable("lesson_questions", {
   teacherResponse: text("teacher_response"),
   teacherId: uuid("teacher_id").references(() => profiles.id),
   teacherRepliedAt: timestamp("teacher_replied_at", { withTimezone: true }),
-  status: questionStatusEnum("question_status").notNull().default("queued"),
+  status: questionStatusEnum("status").notNull().default("queued"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
@@ -460,7 +460,7 @@ export const submissions = pgTable("submissions", {
   studentId: uuid("student_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
   classId: uuid("class_id").notNull().references(() => classes.id),
   lessonId: uuid("lesson_id").references(() => lessons.id), // null for standalone exams
-  type: submissionTypeEnum("submission_type").notNull().default("class_activity"),
+  type: submissionTypeEnum("type").notNull().default("class_activity"),
   content: text("content").notNull(),             // raw code or external URL
   submittedAt: timestamp("submitted_at", { withTimezone: true }).defaultNow().notNull(),
   aiScore: integer("ai_score"),                   // 0-100, AI first-pass only
@@ -469,7 +469,7 @@ export const submissions = pgTable("submissions", {
   teacherScore: integer("teacher_score"),          // score of record after confirmation
   teacherId: uuid("teacher_id").references(() => profiles.id),
   teacherReviewedAt: timestamp("teacher_reviewed_at", { withTimezone: true }),
-  status: submissionStatusEnum("submission_status").notNull().default("submitted"),
+  status: submissionStatusEnum("status").notNull().default("submitted"),
 });
 
 // ---------------------------------------------------------------------------
