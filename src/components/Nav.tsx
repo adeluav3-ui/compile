@@ -4,7 +4,13 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 
-const links = [
+type NavLink = {
+  href: "/" | "/cohort" | "/individual" | "/school";
+  label: string;
+  pill?: string;
+};
+
+const links: NavLink[] = [
   { href: "/", label: "Home" },
   { href: "/cohort", label: "Cohort 01" },
   { href: "/individual", label: "Individual", pill: "Waitlist" },

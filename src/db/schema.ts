@@ -293,9 +293,11 @@ export const lessons = pgTable("lessons", {
   title: text("title").notNull(),
   description: text("description"),
   type: lessonTypeEnum("type").notNull().default("video"),
-  contentUrl: text("content_url"), // VdoCipher video ID for cloud; local path for offline
+  contentUrl: text("content_url"),       // video ID/path — encrypted at rest for School Edition
+  notesUrl: text("notes_url"),           // PDF/PPT download path
+  gradingRubric: text("grading_rubric"), // plain-text rubric fed to AI for grading
   durationMinutes: integer("duration_minutes"),
-  order: integer("order").notNull().default(0), // lesson ordering within subject+level
+  order: integer("order").notNull().default(0),
   publishedAt: timestamp("published_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
@@ -358,11 +360,131 @@ export const practicalExams = pgTable("practical_exams", {
   subjectId: uuid("subject_id").notNull().references(() => subjects.id),
   title: text("title").notNull(),
   submissionText: text("submission_text"),
-  submissionUrl: text("submission_url"), // file upload link
-  status: text("status").notNull().default("submitted"), // submitted | reviewed | returned
+  submissionUrl: text("submission_url"),
+  status: text("status").notNull().default("submitted"),
   teacherFeedback: text("teacher_feedback"),
-  score: integer("score"), // 0-100
+  score: integer("score"),
   reviewedBy: uuid("reviewed_by").references(() => profiles.id),
   submittedAt: timestamp("submitted_at", { withTimezone: true }).defaultNow().notNull(),
   reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
 });
+
+// ===========================================================================
+// SCHOOL EDITION — CLASSROOM DELIVERY FEATURES
+// ===========================================================================
+
+// ---------------------------------------------------------------------------
+// Lesson releases — teacher permission flag per (lesson, class)
+// A row existing = that lesson is visible to that class. No row = locked.
+// ---------------------------------------------------------------------------
+
+export const lessonReleases = pgTable(
+  "lesson_releases",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    lessonId: uuid("lesson_id").notNull().references(() => lessons.id, { onDelete: "cascade" }),
+    classId: uuid("class_id").notNull().references(() => classes.id, { onDelete: "cascade" }),
+    releasedBy: uuid("released_by").notNull().references(() => profiles.id),
+    releasedAt: timestamp("released_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [unique().on(t.lessonId, t.classId)]
+);
+
+// ---------------------------------------------------------------------------
+// Lesson Q&A — one shared thread per (lesson, class)
+// ---------------------------------------------------------------------------
+
+export const questionStatusEnum = pgEnum("question_status", [
+  "queued",
+  "ai_answered",
+  "teacher_replied",
+]);
+
+export const lessonQuestions = pgTable("lesson_questions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  lessonId: uuid("lesson_id").notNull().references(() => lessons.id, { onDelete: "cascade" }),
+  classId: uuid("class_id").notNull().references(() => classes.id, { onDelete: "cascade" }),
+  studentId: uuid("student_id").notNull().references(() => profiles.id),
+  questionText: text("question_text").notNull(),
+  aiAnswer: text("ai_answer"),
+  aiAnsweredAt: timestamp("ai_answered_at", { withTimezone: true }),
+  teacherResponse: text("teacher_response"),
+  teacherId: uuid("teacher_id").references(() => profiles.id),
+  teacherRepliedAt: timestamp("teacher_replied_at", { withTimezone: true }),
+  status: questionStatusEnum("question_status").notNull().default("queued"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+// ---------------------------------------------------------------------------
+// AI queue — offline-safe queue for Q&A answers and submission grading
+// When offline, rows are inserted here; a flush job processes them on reconnect.
+// ---------------------------------------------------------------------------
+
+export const aiQueueTypeEnum = pgEnum("ai_queue_type", ["qa", "grade"]);
+export const aiQueueStatusEnum = pgEnum("ai_queue_status", [
+  "pending",
+  "processing",
+  "done",
+  "failed",
+]);
+
+export const aiQueue = pgTable("ai_queue", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  type: aiQueueTypeEnum("type").notNull(),
+  payload: jsonb("payload").notNull(), // { questionId } | { submissionId }
+  status: aiQueueStatusEnum("status").notNull().default("pending"),
+  result: jsonb("result"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  processedAt: timestamp("processed_at", { withTimezone: true }),
+});
+
+// ---------------------------------------------------------------------------
+// Unified submissions — class activities, practicals, and exams in one table
+// type field distinguishes them; teacher Review Queue filters by type.
+// ---------------------------------------------------------------------------
+
+export const submissionTypeEnum = pgEnum("submission_type", [
+  "class_activity",
+  "practical",
+  "exam",
+]);
+
+export const submissionStatusEnum = pgEnum("submission_status", [
+  "submitted",
+  "ai_graded",
+  "teacher_confirmed",
+]);
+
+export const submissions = pgTable("submissions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  studentId: uuid("student_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
+  classId: uuid("class_id").notNull().references(() => classes.id),
+  lessonId: uuid("lesson_id").references(() => lessons.id), // null for standalone exams
+  type: submissionTypeEnum("submission_type").notNull().default("class_activity"),
+  content: text("content").notNull(),             // raw code or external URL
+  submittedAt: timestamp("submitted_at", { withTimezone: true }).defaultNow().notNull(),
+  aiScore: integer("ai_score"),                   // 0-100, AI first-pass only
+  aiFeedback: text("ai_feedback"),
+  aiGradedAt: timestamp("ai_graded_at", { withTimezone: true }),
+  teacherScore: integer("teacher_score"),          // score of record after confirmation
+  teacherId: uuid("teacher_id").references(() => profiles.id),
+  teacherReviewedAt: timestamp("teacher_reviewed_at", { withTimezone: true }),
+  status: submissionStatusEnum("submission_status").notNull().default("submitted"),
+});
+
+// ---------------------------------------------------------------------------
+// Workspace saves — auto-saved draft code, one row per (student, lesson)
+// Upserted periodically so closing the browser doesn't lose work.
+// ---------------------------------------------------------------------------
+
+export const workspaceSaves = pgTable(
+  "workspace_saves",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    studentId: uuid("student_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
+    lessonId: uuid("lesson_id").notNull().references(() => lessons.id, { onDelete: "cascade" }),
+    code: text("code").notNull(),
+    savedAt: timestamp("saved_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [unique().on(t.studentId, t.lessonId)]
+);
