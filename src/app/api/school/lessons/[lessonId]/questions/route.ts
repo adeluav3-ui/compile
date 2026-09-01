@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { lessonQuestions, aiQueue } from "@/db/schema";
+import { lessonQuestions, aiQueue, lessons } from "@/db/schema";
 import { and, eq, asc } from "drizzle-orm";
 import { getSchoolSession } from "@/lib/school-session";
 import { answerLessonQuestion } from "@/lib/ai";
-import { lessons } from "@/db/schema";
+
+const QUESTION_LIMIT = 5;
 
 export async function GET(
   req: NextRequest,
@@ -41,6 +42,28 @@ export async function POST(
     return NextResponse.json({ error: "Question text required." }, { status: 400 });
   }
 
+  // Enforce per-student per-lesson question limit
+  const existing = await db
+    .select({ id: lessonQuestions.id })
+    .from(lessonQuestions)
+    .where(
+      and(
+        eq(lessonQuestions.lessonId, lessonId),
+        eq(lessonQuestions.studentId, session.profileId)
+      )
+    );
+
+  if (existing.length >= QUESTION_LIMIT) {
+    return NextResponse.json(
+      {
+        error: `You have used all ${QUESTION_LIMIT} questions allowed for this lesson.`,
+        limitReached: true,
+        limit: QUESTION_LIMIT,
+      },
+      { status: 429 }
+    );
+  }
+
   const [lesson] = await db.select().from(lessons).where(eq(lessons.id, lessonId));
 
   const [row] = await db
@@ -56,7 +79,11 @@ export async function POST(
 
   // Try AI answer immediately; if it fails (offline), queue it
   try {
-    const aiAnswer = await answerLessonQuestion(lesson?.title ?? lessonId, questionText.trim());
+    const aiAnswer = await answerLessonQuestion(
+      lesson?.title ?? lessonId,
+      lesson?.description ?? null,
+      questionText.trim()
+    );
     const [updated] = await db
       .update(lessonQuestions)
       .set({ aiAnswer, aiAnsweredAt: new Date(), status: "ai_answered" })
@@ -64,7 +91,6 @@ export async function POST(
       .returning();
     return NextResponse.json(updated, { status: 201 });
   } catch {
-    // Offline or API unavailable — queue for later
     await db.insert(aiQueue).values({ type: "qa", payload: { questionId: row.id } });
     return NextResponse.json(row, { status: 201 });
   }

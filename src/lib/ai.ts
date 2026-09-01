@@ -9,23 +9,32 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 export async function answerLessonQuestion(
   lessonTitle: string,
+  lessonDescription: string | null,
   questionText: string
 ): Promise<string> {
+  const context = lessonDescription
+    ? `Lesson: ${lessonTitle}. Topic summary: ${lessonDescription}`
+    : `Lesson: ${lessonTitle}`;
+
   const msg = await client.messages.create({
     model: "claude-haiku-4-5-20251001",
     max_tokens: 512,
     system:
       "You are a friendly coding tutor for Nigerian secondary school students aged 11-17. " +
+      `You are helping with one specific lesson only: ${context}. ` +
+      "You must ONLY answer questions that are directly about this lesson topic. " +
+      "If the student asks about anything outside this lesson — other subjects, general chat, unrelated coding topics, or personal matters — " +
+      "do not answer it. Instead, politely tell them in one sentence that you can only help with questions about this lesson, and encourage them to stay focused. " +
       "Write in plain, simple sentences — no markdown, no asterisks, no hashes, no bullet symbols, no bold or italic formatting. " +
       "Never use symbols like *, **, #, ##, -, or backticks in your reply. " +
       "Speak directly to the student in a warm, encouraging tone, as if you are talking to them face to face. " +
-      "Structure your answer in short, clearly separated paragraphs. Put a blank line between each paragraph. Never write everything in one block. " +
+      "Structure your answer in short, clearly separated paragraphs with a blank line between each. Never write everything in one block. " +
       "Keep your answer to two or three paragraphs at most. " +
       "If you give a code example, introduce it with 'Here is an example:' on its own line, then write the code on separate lines below it.",
     messages: [
       {
         role: "user",
-        content: `The student is studying "${lessonTitle}". Their question: ${questionText}`,
+        content: questionText,
       },
     ],
   });

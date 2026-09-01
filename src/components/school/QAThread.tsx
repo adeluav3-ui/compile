@@ -13,6 +13,8 @@ export type QAItem = {
   createdAt: string;
 };
 
+const QUESTION_LIMIT = 5;
+
 export default function QAThread({
   lessonId,
   initialItems,
@@ -25,10 +27,16 @@ export default function QAThread({
   const [items, setItems] = useState<QAItem[]>(initialItems);
   const [question, setQuestion] = useState("");
   const [posting, setPosting] = useState(false);
+  const [limitReached, setLimitReached] = useState(
+    initialItems.filter((q) => q.studentId === studentId).length >= QUESTION_LIMIT
+  );
+
+  const myQuestionCount = items.filter((q) => q.studentId === studentId).length;
+  const remaining = Math.max(0, QUESTION_LIMIT - myQuestionCount);
 
   async function post(e: React.FormEvent) {
     e.preventDefault();
-    if (!question.trim()) return;
+    if (!question.trim() || limitReached) return;
     setPosting(true);
     try {
       const res = await fetch(`/api/school/lessons/${lessonId}/questions`, {
@@ -36,6 +44,12 @@ export default function QAThread({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ questionText: question }),
       });
+
+      if (res.status === 429) {
+        setLimitReached(true);
+        return;
+      }
+
       const newItem = await res.json();
       setItems((prev) => [...prev, newItem]);
       setQuestion("");
@@ -46,6 +60,7 @@ export default function QAThread({
 
   return (
     <div className="rounded-[3px] border border-line bg-surface">
+      {/* Thread */}
       <div className="divide-y divide-line">
         {items.length === 0 && (
           <p className="px-5 py-6 text-center text-sm text-muted">
@@ -98,23 +113,39 @@ export default function QAThread({
         ))}
       </div>
 
-      {/* Ask input */}
-      <form onSubmit={post} className="flex gap-2 border-t border-line p-4">
-        <input
-          type="text"
-          value={question}
-          onChange={(e) => setQuestion(e.target.value)}
-          placeholder="Ask a question about this lesson…"
-          className="flex-1 rounded-[3px] border border-line bg-paper px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-navy focus:outline-none"
-        />
-        <button
-          type="submit"
-          disabled={posting || !question.trim()}
-          className="rounded-[3px] bg-navy px-4 py-2 text-sm text-surface transition-colors hover:bg-navy-deep disabled:opacity-50"
-        >
-          {posting ? "Asking…" : "Ask"}
-        </button>
-      </form>
+      {/* Input area */}
+      {limitReached ? (
+        <div className="border-t border-line bg-paper px-5 py-4 text-center">
+          <p className="text-sm text-muted">
+            You have used all {QUESTION_LIMIT} questions for this lesson.
+          </p>
+          <p className="mt-1 text-xs text-muted">
+            Review your teacher&apos;s replies above, or ask your teacher directly in class.
+          </p>
+        </div>
+      ) : (
+        <div className="border-t border-line">
+          <form onSubmit={post} className="flex gap-2 p-4">
+            <input
+              type="text"
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+              placeholder="Ask a question about this lesson…"
+              className="flex-1 rounded-[3px] border border-line bg-paper px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-navy focus:outline-none"
+            />
+            <button
+              type="submit"
+              disabled={posting || !question.trim()}
+              className="rounded-[3px] bg-navy px-4 py-2 text-sm text-surface transition-colors hover:bg-navy-deep disabled:opacity-50"
+            >
+              {posting ? "Asking…" : "Ask"}
+            </button>
+          </form>
+          <p className="px-4 pb-3 font-mono text-xs text-muted">
+            {remaining} of {QUESTION_LIMIT} questions remaining for this lesson
+          </p>
+        </div>
+      )}
     </div>
   );
 }
