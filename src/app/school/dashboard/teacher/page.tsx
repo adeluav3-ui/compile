@@ -166,7 +166,13 @@ export default async function TeacherDashboard() {
                   {q.aiAnswer && (
                     <div className="mb-4 rounded bg-paper p-3">
                       <span className="font-mono text-xs text-brass font-semibold">AI answer</span>
-                      <p className="mt-1 text-sm text-ink">{q.aiAnswer}</p>
+                      <div className="mt-1 space-y-2">
+                        {q.aiAnswer.split(/\n\n+/).map((para, i) => (
+                          <p key={i} className="whitespace-pre-wrap text-sm leading-relaxed text-ink">
+                            {para.trim()}
+                          </p>
+                        ))}
+                      </div>
                     </div>
                   )}
                   <QAReplyForm questionId={q.id} />
@@ -209,7 +215,13 @@ export default async function TeacherDashboard() {
                   {sub.aiFeedback && (
                     <div className="mb-4 rounded bg-paper p-3">
                       <span className="font-mono text-xs text-muted">AI feedback</span>
-                      <p className="mt-1 text-sm text-ink">{sub.aiFeedback}</p>
+                      <div className="mt-1 space-y-2">
+                        {sub.aiFeedback.split(/\n\n+/).map((para, i) => (
+                          <p key={i} className="whitespace-pre-wrap text-sm leading-relaxed text-ink">
+                            {para.trim()}
+                          </p>
+                        ))}
+                      </div>
                     </div>
                   )}
                   <GradeConfirm submissionId={sub.id} aiScore={sub.aiScore ?? 0} />

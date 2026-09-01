@@ -129,7 +129,13 @@ export default function CodeWorkspace({
       {submitResult?.feedback && (
         <div className="border-t border-line bg-paper px-4 py-3">
           <span className="font-mono text-xs text-muted">AI Feedback</span>
-          <p className="mt-1 text-sm text-ink">{submitResult.feedback}</p>
+          <div className="mt-1 space-y-2">
+            {submitResult.feedback.split(/\n\n+/).map((para, i) => (
+              <p key={i} className="whitespace-pre-wrap text-sm leading-relaxed text-ink">
+                {para.trim()}
+              </p>
+            ))}
+          </div>
         </div>
       )}
     </div>
