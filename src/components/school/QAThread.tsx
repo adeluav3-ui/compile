@@ -116,11 +116,11 @@ export default function QAThread({
       {/* Input area */}
       {limitReached ? (
         <div className="border-t border-line bg-paper px-5 py-4 text-center">
-          <p className="text-sm text-muted">
+          <p className="text-sm font-medium text-navy-deep">
             You have used all {QUESTION_LIMIT} questions for this lesson.
           </p>
-          <p className="mt-1 text-xs text-muted">
-            Review your teacher&apos;s replies above, or ask your teacher directly in class.
+          <p className="mt-1 text-sm text-muted">
+            Go back and rewatch the video carefully, then read through the lesson notes — most answers are in there. If you are still stuck, ask your teacher in class.
           </p>
         </div>
       ) : (
