@@ -8,6 +8,7 @@ import {
   lessonReleases,
   lessonQuestions,
   submissions,
+  profiles,
 } from "@/db/schema";
 import { and, eq, desc } from "drizzle-orm";
 import Link from "next/link";
@@ -34,7 +35,6 @@ export default async function TeacherDashboard() {
   }
 
   const classId = assignment.classId;
-
   const [cls] = await db.select().from(classes).where(eq(classes.id, classId));
 
   const allLessons = await db
@@ -50,9 +50,18 @@ export default async function TeacherDashboard() {
 
   const releasedIds = new Set(releases.map((r) => r.lessonId));
 
+  // Q&A items that need a teacher reply — with the student's name
+  const studentProfiles = profiles;
   const pendingQA = await db
-    .select()
+    .select({
+      id: lessonQuestions.id,
+      questionText: lessonQuestions.questionText,
+      aiAnswer: lessonQuestions.aiAnswer,
+      status: lessonQuestions.status,
+      studentName: studentProfiles.fullName,
+    })
     .from(lessonQuestions)
+    .innerJoin(studentProfiles, eq(lessonQuestions.studentId, studentProfiles.id))
     .where(
       and(
         eq(lessonQuestions.classId, classId),
@@ -61,9 +70,19 @@ export default async function TeacherDashboard() {
     )
     .orderBy(desc(lessonQuestions.createdAt));
 
+  // Submissions awaiting review — with the student's name
   const pendingSubmissions = await db
-    .select()
+    .select({
+      id: submissions.id,
+      type: submissions.type,
+      content: submissions.content,
+      submittedAt: submissions.submittedAt,
+      aiScore: submissions.aiScore,
+      aiFeedback: submissions.aiFeedback,
+      studentName: studentProfiles.fullName,
+    })
     .from(submissions)
+    .innerJoin(studentProfiles, eq(submissions.studentId, studentProfiles.id))
     .where(
       and(
         eq(submissions.classId, classId),
@@ -74,12 +93,9 @@ export default async function TeacherDashboard() {
 
   return (
     <div className="min-h-screen bg-paper">
-      {/* Nav */}
       <header className="flex items-center justify-between border-b border-line bg-surface px-6 py-4">
         <div className="flex items-center gap-3">
-          <span className="font-mono text-xs tracking-widest text-brass uppercase">
-            Compile
-          </span>
+          <span className="font-mono text-xs tracking-widest text-brass uppercase">Compile</span>
           <span className="text-line">|</span>
           <span className="text-sm text-muted">School Edition</span>
         </div>
@@ -88,24 +104,16 @@ export default async function TeacherDashboard() {
           <span className="rounded bg-navy-deep/10 px-2 py-0.5 font-mono text-xs text-navy-deep">
             Teacher
           </span>
-          <Link
-            href="/school/login"
-            className="text-xs text-muted transition-colors hover:text-navy"
-          >
+          <Link href="/school/login" className="text-xs text-muted transition-colors hover:text-navy">
             Switch account
           </Link>
         </div>
       </header>
 
       <main className="mx-auto max-w-4xl space-y-10 px-6 py-8">
-        {/* Class info */}
         <div>
-          <h1 className="font-serif text-2xl font-semibold text-navy-deep">
-            {cls.name}
-          </h1>
-          <p className="mt-1 text-sm text-muted">
-            {cls.level} · {cls.academicYear}
-          </p>
+          <h1 className="font-serif text-2xl font-semibold text-navy-deep">{cls.name}</h1>
+          <p className="mt-1 text-sm text-muted">{cls.level} · {cls.academicYear}</p>
         </div>
 
         {/* ── Lessons ── */}
@@ -124,9 +132,7 @@ export default async function TeacherDashboard() {
                     {lesson.order}. {lesson.title}
                   </div>
                   {lesson.description && (
-                    <div className="mt-0.5 max-w-md text-xs text-muted">
-                      {lesson.description}
-                    </div>
+                    <div className="mt-0.5 max-w-md text-xs text-muted">{lesson.description}</div>
                   )}
                 </div>
                 <ReleaseToggleButton
@@ -145,25 +151,21 @@ export default async function TeacherDashboard() {
             Q&A — Needs Your Reply ({pendingQA.length})
           </h2>
           {pendingQA.length === 0 ? (
-            <p className="text-sm text-muted">
-              No questions waiting for your reply.
-            </p>
+            <p className="text-sm text-muted">No questions waiting for your reply.</p>
           ) : (
             <div className="space-y-4">
               {pendingQA.map((q) => (
-                <div
-                  key={q.id}
-                  className="rounded-[3px] border border-line bg-surface p-5"
-                >
+                <div key={q.id} className="rounded-[3px] border border-line bg-surface p-5">
                   <div className="mb-3">
-                    <span className="font-mono text-xs text-muted">
-                      Student question
+                    <span className="font-semibold text-sm text-navy-deep">
+                      {q.studentName ?? "Student"}
                     </span>
-                    <p className="mt-1 text-sm text-navy-deep">{q.questionText}</p>
+                    <span className="ml-2 font-mono text-xs text-muted">asked:</span>
+                    <p className="mt-1 text-sm text-ink">{q.questionText}</p>
                   </div>
                   {q.aiAnswer && (
                     <div className="mb-4 rounded bg-paper p-3">
-                      <span className="font-mono text-xs text-muted">AI answer</span>
+                      <span className="font-mono text-xs text-brass font-semibold">AI answer</span>
                       <p className="mt-1 text-sm text-ink">{q.aiAnswer}</p>
                     </div>
                   )}
@@ -184,18 +186,17 @@ export default async function TeacherDashboard() {
           ) : (
             <div className="space-y-4">
               {pendingSubmissions.map((sub) => (
-                <div
-                  key={sub.id}
-                  className="rounded-[3px] border border-line bg-surface p-5"
-                >
+                <div key={sub.id} className="rounded-[3px] border border-line bg-surface p-5">
                   <div className="mb-3 flex items-start justify-between">
                     <div>
-                      <span className="font-mono text-xs uppercase text-muted">
-                        {sub.type}
+                      <span className="font-semibold text-sm text-navy-deep">
+                        {sub.studentName ?? "Student"}
+                      </span>
+                      <span className="ml-2 font-mono text-xs uppercase text-muted">
+                        · {sub.type}
                       </span>
                       <p className="mt-0.5 text-xs text-muted">
-                        Submitted{" "}
-                        {new Date(sub.submittedAt).toLocaleDateString("en-GB")}
+                        Submitted {new Date(sub.submittedAt).toLocaleDateString("en-GB")}
                       </p>
                     </div>
                     <span className="font-mono text-lg font-semibold text-navy-deep">
@@ -207,16 +208,11 @@ export default async function TeacherDashboard() {
                   </pre>
                   {sub.aiFeedback && (
                     <div className="mb-4 rounded bg-paper p-3">
-                      <span className="font-mono text-xs text-muted">
-                        AI feedback
-                      </span>
+                      <span className="font-mono text-xs text-muted">AI feedback</span>
                       <p className="mt-1 text-sm text-ink">{sub.aiFeedback}</p>
                     </div>
                   )}
-                  <GradeConfirm
-                    submissionId={sub.id}
-                    aiScore={sub.aiScore ?? 0}
-                  />
+                  <GradeConfirm submissionId={sub.id} aiScore={sub.aiScore ?? 0} />
                 </div>
               ))}
             </div>

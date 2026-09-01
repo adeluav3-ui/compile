@@ -1,7 +1,7 @@
 import { getSchoolSession } from "@/lib/school-session";
 import { redirect, notFound } from "next/navigation";
 import { db } from "@/db";
-import { lessons, lessonReleases, workspaceSaves, lessonQuestions } from "@/db/schema";
+import { lessons, lessonReleases, workspaceSaves, lessonQuestions, profiles } from "@/db/schema";
 import { and, eq, asc } from "drizzle-orm";
 import Link from "next/link";
 import CodeWorkspace from "@/components/school/CodeWorkspace";
@@ -18,13 +18,10 @@ export default async function StudentLessonPage({
 
   const classId = session.classId!;
 
-  // Guard: lesson must be released for this class
   const [release] = await db
     .select()
     .from(lessonReleases)
-    .where(
-      and(eq(lessonReleases.lessonId, id), eq(lessonReleases.classId, classId))
-    );
+    .where(and(eq(lessonReleases.lessonId, id), eq(lessonReleases.classId, classId)));
 
   if (!release) notFound();
 
@@ -34,25 +31,31 @@ export default async function StudentLessonPage({
   const [savedDraft] = await db
     .select()
     .from(workspaceSaves)
-    .where(
-      and(
-        eq(workspaceSaves.studentId, session.profileId),
-        eq(workspaceSaves.lessonId, id)
-      )
-    );
+    .where(and(eq(workspaceSaves.studentId, session.profileId), eq(workspaceSaves.lessonId, id)));
 
+  // JOIN profiles so every question row carries the student's name
   const rawQA = await db
-    .select()
+    .select({
+      id: lessonQuestions.id,
+      studentId: lessonQuestions.studentId,
+      studentName: profiles.fullName,
+      questionText: lessonQuestions.questionText,
+      aiAnswer: lessonQuestions.aiAnswer,
+      aiAnsweredAt: lessonQuestions.aiAnsweredAt,
+      teacherResponse: lessonQuestions.teacherResponse,
+      teacherRepliedAt: lessonQuestions.teacherRepliedAt,
+      status: lessonQuestions.status,
+      createdAt: lessonQuestions.createdAt,
+    })
     .from(lessonQuestions)
-    .where(
-      and(eq(lessonQuestions.lessonId, id), eq(lessonQuestions.classId, classId))
-    )
+    .innerJoin(profiles, eq(lessonQuestions.studentId, profiles.id))
+    .where(and(eq(lessonQuestions.lessonId, id), eq(lessonQuestions.classId, classId)))
     .orderBy(asc(lessonQuestions.createdAt));
 
-  // Serialize Date objects so they can be passed to client components
   const qaItems: QAItem[] = rawQA.map((q) => ({
     id: q.id,
     studentId: q.studentId,
+    studentName: q.studentName,
     questionText: q.questionText,
     aiAnswer: q.aiAnswer,
     aiAnsweredAt: q.aiAnsweredAt?.toISOString() ?? null,
@@ -76,7 +79,6 @@ export default async function StudentLessonPage({
 
   return (
     <div className="min-h-screen bg-paper">
-      {/* Nav */}
       <header className="flex items-center justify-between border-b border-line bg-surface px-6 py-4">
         <div className="flex items-center gap-3">
           <Link
@@ -99,16 +101,13 @@ export default async function StudentLessonPage({
       </header>
 
       <main className="mx-auto max-w-4xl space-y-8 px-6 py-8">
-        {/* Lesson header */}
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="font-serif text-2xl font-semibold text-navy-deep">
               Lesson {lesson.order}: {lesson.title}
             </h1>
             {lesson.description && (
-              <p className="mt-2 max-w-xl text-sm text-muted">
-                {lesson.description}
-              </p>
+              <p className="mt-2 max-w-xl text-sm text-muted">{lesson.description}</p>
             )}
           </div>
           {lesson.notesUrl && (
@@ -122,11 +121,8 @@ export default async function StudentLessonPage({
           )}
         </div>
 
-        {/* Video */}
         <section>
-          <h2 className="mb-3 font-mono text-xs uppercase tracking-widest text-brass">
-            Video
-          </h2>
+          <h2 className="mb-3 font-mono text-xs uppercase tracking-widest text-brass">Video</h2>
           <div className="flex aspect-video items-center justify-center rounded-[3px] border border-line bg-surface">
             {lesson.contentUrl ? (
               <video className="h-full w-full rounded-[3px]" controls>
@@ -135,37 +131,27 @@ export default async function StudentLessonPage({
             ) : (
               <div className="text-center">
                 <div className="mb-2 text-4xl text-muted">▶</div>
-                <p className="text-sm text-muted">
-                  Video syncs from the school server.
-                </p>
-                <p className="mt-1 font-mono text-xs text-muted">
-                  {lesson.title}
-                </p>
+                <p className="text-sm text-muted">Video syncs from the school server.</p>
+                <p className="mt-1 font-mono text-xs text-muted">{lesson.title}</p>
               </div>
             )}
           </div>
         </section>
 
-        {/* Practice Workspace */}
         <section>
           <h2 className="mb-3 font-mono text-xs uppercase tracking-widest text-brass">
             Practice Workspace
           </h2>
-          <CodeWorkspace
-            lessonId={id}
-            initialCode={savedDraft?.code ?? defaultCode}
-          />
+          <CodeWorkspace lessonId={id} initialCode={savedDraft?.code ?? defaultCode} />
         </section>
 
-        {/* Q&A Thread */}
         <section>
-          <h2 className="mb-3 font-mono text-xs uppercase tracking-widest text-brass">
-            Q&A
-          </h2>
+          <h2 className="mb-3 font-mono text-xs uppercase tracking-widest text-brass">Q&A</h2>
           <QAThread
             lessonId={id}
             initialItems={qaItems}
             studentId={session.profileId}
+            studentName={session.name}
           />
         </section>
       </main>

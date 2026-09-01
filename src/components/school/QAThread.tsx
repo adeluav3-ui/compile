@@ -4,6 +4,7 @@ import { useState } from "react";
 export type QAItem = {
   id: string;
   studentId: string;
+  studentName: string | null;
   questionText: string;
   aiAnswer: string | null;
   aiAnsweredAt: string | null;
@@ -19,10 +20,12 @@ export default function QAThread({
   lessonId,
   initialItems,
   studentId,
+  studentName,
 }: {
   lessonId: string;
   initialItems: QAItem[];
   studentId: string;
+  studentName: string;
 }) {
   const [items, setItems] = useState<QAItem[]>(initialItems);
   const [question, setQuestion] = useState("");
@@ -50,7 +53,9 @@ export default function QAThread({
         return;
       }
 
-      const newItem = await res.json();
+      const raw = await res.json();
+      // Merge in the student's name since the API returns a bare DB row
+      const newItem: QAItem = { ...raw, studentName };
       setItems((prev) => [...prev, newItem]);
       setQuestion("");
     } finally {
@@ -71,21 +76,28 @@ export default function QAThread({
           <div key={item.id} className="px-5 py-4 space-y-3">
             {/* Question */}
             <div className="flex items-start gap-3">
-              <span className="mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-navy/10 font-mono text-xs text-navy">
-                {item.studentId === studentId ? "You" : "S"}
-              </span>
+              <div className="mt-0.5 flex-shrink-0 text-right">
+                <span className="block font-semibold text-xs text-navy-deep">
+                  {item.studentName ?? "Student"}
+                </span>
+                {item.studentId === studentId && (
+                  <span className="block font-mono text-[10px] text-muted">you</span>
+                )}
+              </div>
               <p className="text-sm text-ink">{item.questionText}</p>
             </div>
 
             {/* AI answer */}
             {item.status === "queued" && !item.aiAnswer && (
-              <div className="ml-9 font-mono text-xs text-muted">
+              <div className="ml-16 font-mono text-xs text-muted">
                 AI answer pending (offline queue)…
               </div>
             )}
             {item.aiAnswer && (
-              <div className="ml-9 flex items-start gap-3">
-                <span className="mt-0.5 flex-shrink-0 font-mono text-xs text-brass">AI</span>
+              <div className="ml-16 flex items-start gap-3">
+                <span className="mt-0.5 flex-shrink-0 font-mono text-xs font-semibold text-brass">
+                  AI
+                </span>
                 <div className="rounded bg-paper px-3 py-2 text-sm text-ink space-y-2">
                   {item.aiAnswer
                     .split(/\n\n+/)
@@ -100,8 +112,8 @@ export default function QAThread({
 
             {/* Teacher reply */}
             {item.teacherResponse && (
-              <div className="ml-9 flex items-start gap-3">
-                <span className="mt-0.5 flex-shrink-0 font-mono text-xs text-steel">
+              <div className="ml-16 flex items-start gap-3">
+                <span className="mt-0.5 flex-shrink-0 font-mono text-xs font-semibold text-steel">
                   Teacher
                 </span>
                 <div className="rounded border border-steel/20 bg-steel/5 px-3 py-2 text-sm text-ink">
