@@ -29,7 +29,7 @@ export default function SchoolPage() {
             and dashboards for admins, teachers, and students — built to run even when your
             school&apos;s internet doesn&apos;t.
           </p>
-          <div className="mb-14 flex justify-center gap-3.5">
+          <div className="mb-3 flex flex-wrap justify-center gap-3.5">
             <Link
               href="#pricing"
               className="rounded-[2px] bg-navy px-5 py-[11px] text-sm font-semibold text-white transition-colors hover:bg-navy-deep"
@@ -37,12 +37,15 @@ export default function SchoolPage() {
               Book a demo for your school
             </Link>
             <Link
-              href="#outcomes"
-              className="rounded-[2px] border border-line px-[18px] py-[11px] text-sm font-medium text-ink"
+              href="/school/login"
+              className="rounded-[2px] border border-navy px-[18px] py-[11px] text-sm font-semibold text-navy transition-colors hover:bg-navy hover:text-white"
             >
-              See the outcomes
+              Try the live demo →
             </Link>
           </div>
+          <p className="mb-14 text-xs text-muted">
+            No sign-up needed — explore as a teacher or student
+          </p>
 
           {/* Stat row */}
           <div
@@ -152,6 +155,32 @@ export default function SchoolPage() {
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* TRY DEMO */}
+      <section className="border-y border-line bg-surface py-16">
+        <div className="mx-auto max-w-[1120px] px-8 text-center">
+          <span className="mb-3 block font-mono text-xs tracking-[0.08em] text-brass uppercase">
+            Try it before you commit
+          </span>
+          <h2 className="mb-3 font-serif text-[30px] font-semibold text-navy-deep">
+            See exactly what your teachers and students will use.
+          </h2>
+          <p className="mx-auto mb-8 max-w-[500px] text-[15px] text-muted">
+            The demo is live right now. Log in as a teacher or student, release a lesson,
+            watch a video, ask the AI a question, submit a practical exam. No sign-up,
+            no sales call, no waiting.
+          </p>
+          <Link
+            href="/school/login"
+            className="inline-block rounded-[2px] bg-navy px-8 py-3 text-sm font-semibold text-white transition-colors hover:bg-navy-deep"
+          >
+            Open the live demo →
+          </Link>
+          <p className="mt-3 text-xs text-muted">
+            Teacher and student demo accounts ready to use
+          </p>
         </div>
       </section>
 
