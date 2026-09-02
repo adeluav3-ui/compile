@@ -21,7 +21,7 @@ export default function Footer() {
             </p>
           </div>
 
-          <div className="flex gap-12 md:gap-16">
+          <div className="flex flex-wrap gap-10 md:gap-16">
             <div>
               <span className="mb-3.5 block font-mono text-xs tracking-widest text-muted uppercase">
                 Programs
@@ -54,7 +54,7 @@ export default function Footer() {
               <Link href="/support" className="mb-2.5 block text-sm text-ink">
                 Help & Support
               </Link>
-              <a href="mailto:compile100@gmail.com" className="mb-2.5 block text-sm text-[#B5B9BE]">
+              <a href="mailto:compile100@gmail.com" className="mb-2.5 block break-all text-sm text-[#B5B9BE]">
                 compile100@gmail.com
               </a>
             </div>
