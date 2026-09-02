@@ -89,7 +89,7 @@ export default function SupportPage() {
                 needs a quick answer. Reach us directly.
               </p>
               <a
-                href="https://wa.me/23481397672432"
+                href="https://wa.me/2348139672432"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 text-sm font-semibold text-navy hover:text-navy-deep"
@@ -154,7 +154,7 @@ export default function SupportPage() {
               <strong className="font-semibold text-ink">Didn&apos;t find what you need?</strong>{" "}
               Reach out on{" "}
               <a
-                href="https://wa.me/23481397672432"
+                href="https://wa.me/2348139672432"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="font-medium text-navy underline underline-offset-2"

@@ -307,7 +307,7 @@ export default async function CohortPage() {
           <div className="mt-8 flex flex-col items-center gap-3 border-t border-line pt-8 text-center">
             <p className="text-sm text-muted">Have questions before you commit? Reach us directly on WhatsApp.</p>
             <a
-              href="https://wa.me/23481397672432"
+              href="https://wa.me/2348139672432"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2.5 rounded-[2px] border border-line bg-surface px-5 py-[11px] text-sm font-semibold text-ink transition-colors hover:border-navy hover:text-navy-deep"
