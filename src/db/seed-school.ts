@@ -12,6 +12,7 @@ const db = drizzle(client, { schema });
 
 async function main() {
   // 1. Profiles
+  const adminProfile = await upsertProfile("a0000000-0000-0000-0000-000000000002", "Mrs. Fatima Bello", "admin@demo.compile.ng");
   const teacherProfile = await upsertProfile("a0000000-0000-0000-0000-000000000001", "Adebayo Okafor", "teacher@demo.compile.ng");
   const student1 = await upsertProfile("b0000000-0000-0000-0000-000000000001", "Chioma Eze", "chioma@student.demo");
   const student2 = await upsertProfile("b0000000-0000-0000-0000-000000000002", "Emeka Nwosu", "emeka@student.demo");
@@ -25,7 +26,7 @@ async function main() {
       id: "c0000000-0000-0000-0000-000000000001",
       name: "Greenfield Secondary School",
       state: "Lagos",
-      adminId: teacherProfile.id,
+      adminId: adminProfile.id,
       subscriptionStatus: "active",
       subscriptionExpiresAt: new Date("2027-12-31"),
       licenseKey: "DEMO-LICENSE-KEY-001",
@@ -125,6 +126,7 @@ async function main() {
   await db
     .insert(schema.userRoles)
     .values([
+      { profileId: adminProfile.id, role: "school_admin" },
       { profileId: teacherProfile.id, role: "teacher" },
       { profileId: student1.id, role: "student" },
       { profileId: student2.id, role: "student" },
@@ -135,6 +137,7 @@ async function main() {
 
   // Print login tokens for use at /school/login
   console.log("\n── Demo accounts ──────────────────────────────────────");
+  console.log("Admin   :", adminProfile.id, "| schoolId:", schoolId);
   console.log("Teacher :", teacherProfile.id, "| classId:", classId, "| schoolId:", schoolId);
   console.log("Student1:", student1.id, "| classId:", classId);
   console.log("Student2:", student2.id, "| classId:", classId);

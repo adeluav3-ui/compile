@@ -41,6 +41,17 @@ const ACCOUNTS = [
     },
     dest: "/school/dashboard/student" as const,
   },
+  {
+    label: "Mrs. Fatima Bello",
+    sub: "School Admin — Greenfield Secondary",
+    session: {
+      profileId: "a0000000-0000-0000-0000-000000000002",
+      role: "school_admin" as const,
+      schoolId: "c0000000-0000-0000-0000-000000000001",
+      name: "Mrs. Fatima Bello",
+    },
+    dest: "/school/dashboard/admin" as const,
+  },
 ];
 
 export default function SchoolLogin() {
