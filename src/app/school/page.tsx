@@ -29,16 +29,10 @@ export default function SchoolPage() {
             and dashboards for admins, teachers, and students — built to run even when your
             school&apos;s internet doesn&apos;t.
           </p>
-          <div className="mb-3 flex flex-wrap justify-center gap-3.5">
-            <Link
-              href="#pricing"
-              className="rounded-[2px] bg-navy px-5 py-[11px] text-sm font-semibold text-white transition-colors hover:bg-navy-deep"
-            >
-              Book a demo for your school
-            </Link>
+          <div className="mb-3 flex justify-center">
             <Link
               href="/school/login"
-              className="rounded-[2px] border border-navy px-[18px] py-[11px] text-sm font-semibold text-navy transition-colors hover:bg-navy hover:text-white"
+              className="rounded-[2px] bg-navy px-6 py-[11px] text-sm font-semibold text-white transition-colors hover:bg-navy-deep"
             >
               Try the live demo →
             </Link>
