@@ -5,10 +5,6 @@ import { eq, and, count } from "drizzle-orm";
 import { COHORT_01_NUMBER, SEAT_CAP, currentAmountKobo } from "@/lib/cohort";
 import { randomBytes } from "crypto";
 
-function generateReference(): string {
-  return `COMPILE-01-${randomBytes(8).toString("hex").toUpperCase()}`;
-}
-
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "Invalid request." }, { status: 400 });
@@ -24,13 +20,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Full name is required." }, { status: 400 });
   }
 
-  // Find cohort 01
   const [cohort] = await db.select().from(cohorts).where(eq(cohorts.number, COHORT_01_NUMBER));
   if (!cohort) {
     return NextResponse.json({ error: "Cohort is not available yet." }, { status: 503 });
   }
 
-  // Block duplicate paid registrations
   const [existingPaid] = await db
     .select({ total: count() })
     .from(cohortRegistrations)
@@ -49,7 +43,6 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Check seat cap (count confirmed paid seats)
   const [seatCount] = await db
     .select({ total: count() })
     .from(cohortRegistrations)
@@ -61,11 +54,11 @@ export async function POST(req: NextRequest) {
     );
 
   if ((seatCount?.total ?? 0) >= SEAT_CAP) {
-    return NextResponse.json({ error: "This cohort is full." }, { status: 409 });
+    return NextResponse.json({ error: "This cohort is full.", full: true }, { status: 409 });
   }
 
-  const reference = generateReference();
   const amountKobo = currentAmountKobo();
+  const reference = `MANUAL-01-${randomBytes(8).toString("hex").toUpperCase()}`;
 
   await db.insert(cohortRegistrations).values({
     cohortId: cohort.id,
@@ -78,14 +71,7 @@ export async function POST(req: NextRequest) {
   });
 
   return NextResponse.json({
-    reference,
-    amountKobo,
-    email,
-    // Read whichever name the environment uses (local vs Vercel naming differs)
-    paystackKey:
-      process.env.PAYSTACK_PUBLIC_KEY ??
-      process.env.NEXT_PAYSTACK_PUBLIC_KEY ??
-      process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY ??
-      "",
+    ok: true,
+    amountNaira: amountKobo / 100,
   });
 }

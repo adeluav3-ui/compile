@@ -2,37 +2,17 @@
 
 import { useRef, useState } from "react";
 
-declare global {
-  interface Window {
-    PaystackPop: {
-      setup(opts: {
-        key: string;
-        email: string;
-        amount: number;
-        ref: string;
-        currency?: string;
-        callback: (response: { reference: string }) => void;
-        onClose: () => void;
-      }): { openIframe(): void };
-    };
-  }
-}
+const BANK_NAME = "Moniepoint MFB";
+const ACCOUNT_NUMBER = "6753109871";
+const ACCOUNT_NAME = "Mount LTD";
+const RECEIPT_WHATSAPP = "2348139672432";
 
-type Status =
-  | "idle"
-  | "earlyBirdEnded"
-  | "open"
-  | "submitting"
-  | "paying"
-  | "verifying"
-  | "redirecting"
-  | "full";
+type Status = "idle" | "earlyBirdEnded" | "open" | "submitting" | "details" | "full";
 
 interface Props {
   seatsLeft: number;
   label: string;
   variant?: "primary" | "secondary";
-  /** Pass false after Sep 10 for the early-bird card so we can warn the user */
   isEarlyBird?: boolean;
 }
 
@@ -44,16 +24,11 @@ export default function ReserveButton({
 }: Props) {
   const [status, setStatus] = useState<Status>("idle");
   const [errorMsg, setErrorMsg] = useState("");
-  const statusRef = useRef<Status>("idle");
+  const [amountNaira, setAmountNaira] = useState(50_000);
 
   const nameRef = useRef<HTMLInputElement>(null);
   const emailRef = useRef<HTMLInputElement>(null);
   const waRef = useRef<HTMLInputElement>(null);
-
-  function updateStatus(s: Status) {
-    setStatus(s);
-    statusRef.current = s;
-  }
 
   const isPrimary = variant === "primary";
 
@@ -68,17 +43,7 @@ export default function ReserveButton({
   if (status === "full") {
     return (
       <div className="rounded-[2px] border border-line bg-[#FEF2F2] p-4 text-sm text-[#991B1B]">
-        The last seat was taken while you were checking out. We&apos;ll reach
-        out within 24 hours to arrange a full refund.
-      </div>
-    );
-  }
-
-  if (status === "redirecting" || status === "verifying") {
-    return (
-      <div className="flex items-center justify-center gap-2 py-[11px] text-sm text-muted">
-        <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-line border-t-navy" />
-        {status === "verifying" ? "Confirming your payment…" : "Joining the group…"}
+        The last seat was taken while you were checking out. Reach out at compile100@gmail.com and we&apos;ll sort it out.
       </div>
     );
   }
@@ -87,18 +52,16 @@ export default function ReserveButton({
     return (
       <div className="space-y-3">
         <div className="rounded-[2px] border border-line bg-[#FFFBEB] px-4 py-3 text-sm text-[#92400E]">
-          <strong className="font-semibold">Early bird pricing has ended.</strong> The
-          September 10 deadline has passed. You can still reserve your spot at the
-          regular price of ₦70,000.
+          <strong className="font-semibold">Early bird pricing has ended.</strong> The September 10 deadline has passed. You can still reserve your spot at the regular price of ₦70,000.
         </div>
         <button
-          onClick={() => updateStatus("open")}
+          onClick={() => setStatus("open")}
           className="block w-full rounded-[2px] bg-navy py-[11px] text-center text-sm font-semibold text-white transition-colors hover:bg-navy-deep"
         >
           Reserve at ₦70,000 →
         </button>
         <button
-          onClick={() => updateStatus("idle")}
+          onClick={() => setStatus("idle")}
           className="w-full text-center text-xs text-muted hover:text-ink"
         >
           Cancel
@@ -112,9 +75,9 @@ export default function ReserveButton({
       <button
         onClick={() => {
           if (variant === "primary" && !isEarlyBird) {
-            updateStatus("earlyBirdEnded");
+            setStatus("earlyBirdEnded");
           } else {
-            updateStatus("open");
+            setStatus("open");
           }
         }}
         className={
@@ -128,7 +91,58 @@ export default function ReserveButton({
     );
   }
 
-  // status === "open" | "submitting" | "paying"
+  if (status === "details") {
+    const name = nameRef.current?.value.trim() ?? "";
+    const email = emailRef.current?.value.trim() ?? "";
+    const msg = encodeURIComponent(
+      `Hi! I've made payment for Compile Cohort 01.\n\nName: ${name}\nEmail: ${email}\n\nAttaching my receipt now.`
+    );
+    const waUrl = `https://wa.me/${RECEIPT_WHATSAPP}?text=${msg}`;
+
+    return (
+      <div className="space-y-4">
+        <div className="rounded-[2px] border border-line bg-surface p-5">
+          <p className="mb-4 text-sm font-semibold text-navy-deep">
+            Transfer ₦{amountNaira.toLocaleString()} to:
+          </p>
+          <div className="space-y-3">
+            {[
+              { label: "Bank", value: BANK_NAME },
+              { label: "Account number", value: ACCOUNT_NUMBER },
+              { label: "Account name", value: ACCOUNT_NAME },
+            ].map((row) => (
+              <div key={row.label} className="flex items-center justify-between border-b border-line pb-3 last:border-0 last:pb-0">
+                <span className="font-mono text-xs text-muted">{row.label}</span>
+                <span className="text-sm font-semibold text-navy-deep">{row.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <p className="text-xs text-muted">
+          Once you&apos;ve sent the transfer, tap the button below to send your receipt via WhatsApp. Your spot is confirmed after we verify it — usually within a few hours.
+        </p>
+
+        <a
+          href={waUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block w-full rounded-[2px] bg-navy py-[11px] text-center text-sm font-semibold text-white transition-colors hover:bg-navy-deep"
+        >
+          I have paid — send receipt →
+        </a>
+
+        <button
+          onClick={() => setStatus("open")}
+          className="w-full text-center text-xs text-muted hover:text-ink"
+        >
+          Go back
+        </button>
+      </div>
+    );
+  }
+
+  // status === "open" | "submitting"
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
@@ -138,12 +152,8 @@ export default function ReserveButton({
 
     if (!fullName || !email) return;
 
-    updateStatus("submitting");
+    setStatus("submitting");
     setErrorMsg("");
-
-    let reference: string;
-    let amountKobo: number;
-    let paystackKey: string;
 
     try {
       const res = await fetch("/api/payments/initiate", {
@@ -154,77 +164,21 @@ export default function ReserveButton({
       const data = await res.json();
 
       if (!res.ok) {
+        if (data.full) {
+          setStatus("full");
+          return;
+        }
         setErrorMsg(data.error ?? "Something went wrong. Please try again.");
-        updateStatus("open");
+        setStatus("open");
         return;
       }
 
-      reference = data.reference;
-      amountKobo = data.amountKobo;
-      paystackKey = data.paystackKey ?? "";
+      setAmountNaira(data.amountNaira ?? 50_000);
+      setStatus("details");
     } catch {
       setErrorMsg("Network error. Please check your connection and try again.");
-      updateStatus("open");
-      return;
+      setStatus("open");
     }
-
-    if (!paystackKey) {
-      setErrorMsg("Payment is not configured yet. Contact compile100@gmail.com.");
-      updateStatus("open");
-      return;
-    }
-
-    updateStatus("paying");
-
-    // Paystack's v1 inline.js validates callback with Object.prototype.toString,
-    // which returns [object AsyncFunction] for async arrows — failing its check.
-    // Wrap the async work in a plain sync function to pass validation.
-    function onPaymentComplete(response: { reference: string }) {
-      updateStatus("verifying");
-
-      fetch("/api/payments/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reference: response.reference }),
-      })
-        .then((vRes) => vRes.json())
-        .then((vData) => {
-          if (vData.ok && vData.redirectUrl) {
-            updateStatus("redirecting");
-            window.location.href = vData.redirectUrl;
-          } else if (vData.full) {
-            updateStatus("full");
-          } else {
-            setErrorMsg(
-              vData.error ??
-                "Payment could not be confirmed. Contact compile100@gmail.com with your payment reference."
-            );
-            updateStatus("open");
-          }
-        })
-        .catch(() => {
-          setErrorMsg(
-            "Network error during confirmation. Contact compile100@gmail.com with your payment reference."
-          );
-          updateStatus("open");
-        });
-    }
-
-    const handler = window.PaystackPop.setup({
-      key: paystackKey,
-      email,
-      amount: Math.round(Number(amountKobo)), // guard: must be plain integer kobo
-      ref: reference,
-      currency: "NGN",
-      callback: onPaymentComplete,
-      onClose: () => {
-        if (statusRef.current === "paying") {
-          updateStatus("open");
-        }
-      },
-    });
-
-    handler.openIframe();
   }
 
   return (
@@ -235,7 +189,7 @@ export default function ReserveButton({
         placeholder="Full name"
         required
         minLength={2}
-        disabled={status === "submitting" || status === "paying"}
+        disabled={status === "submitting"}
         className="w-full rounded-[2px] border border-line px-3 py-2.5 text-sm text-ink placeholder:text-muted focus:border-navy focus:outline-none disabled:opacity-60"
       />
       <input
@@ -243,14 +197,14 @@ export default function ReserveButton({
         type="email"
         placeholder="Email address"
         required
-        disabled={status === "submitting" || status === "paying"}
+        disabled={status === "submitting"}
         className="w-full rounded-[2px] border border-line px-3 py-2.5 text-sm text-ink placeholder:text-muted focus:border-navy focus:outline-none disabled:opacity-60"
       />
       <input
         ref={waRef}
         type="tel"
         placeholder="WhatsApp number (optional)"
-        disabled={status === "submitting" || status === "paying"}
+        disabled={status === "submitting"}
         className="w-full rounded-[2px] border border-line px-3 py-2.5 text-sm text-ink placeholder:text-muted focus:border-navy focus:outline-none disabled:opacity-60"
       />
 
@@ -262,20 +216,16 @@ export default function ReserveButton({
 
       <button
         type="submit"
-        disabled={status === "submitting" || status === "paying"}
+        disabled={status === "submitting"}
         className="block w-full rounded-[2px] bg-navy py-[11px] text-center text-sm font-semibold text-white transition-colors hover:bg-navy-deep disabled:opacity-60"
       >
-        {status === "submitting"
-          ? "Checking availability…"
-          : status === "paying"
-            ? "Complete payment in Paystack window…"
-            : "Continue to payment →"}
+        {status === "submitting" ? "Checking availability…" : "See payment details →"}
       </button>
 
       <button
         type="button"
         onClick={() => {
-          updateStatus("idle");
+          setStatus("idle");
           setErrorMsg("");
         }}
         className="w-full text-center text-xs text-muted hover:text-ink"
