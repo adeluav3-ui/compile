@@ -68,8 +68,8 @@ export default function CodeWorkspace({
   return (
     <div className="overflow-hidden rounded-[3px] border border-line">
       {/* Editor + Preview */}
-      <div className="flex h-[420px]">
-        <div className="flex-1 border-r border-line">
+      <div className="flex flex-col sm:flex-row">
+        <div className="h-[280px] border-b border-line sm:h-[420px] sm:flex-1 sm:border-b-0 sm:border-r">
           <MonacoEditor
             height="100%"
             defaultLanguage="html"
@@ -86,7 +86,7 @@ export default function CodeWorkspace({
             }}
           />
         </div>
-        <div className="flex-1 bg-white">
+        <div className="h-[220px] bg-white sm:h-[420px] sm:flex-1">
           <iframe
             srcDoc={preview}
             sandbox="allow-scripts"

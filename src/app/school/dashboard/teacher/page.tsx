@@ -94,18 +94,18 @@ export default async function TeacherDashboard() {
 
   return (
     <div className="min-h-screen bg-paper">
-      <header className="flex items-center justify-between border-b border-line bg-surface px-6 py-4">
-        <div className="flex items-center gap-3">
+      <header className="flex items-center justify-between border-b border-line bg-surface px-4 py-3 sm:px-6 sm:py-4">
+        <div className="flex items-center gap-2 sm:gap-3">
           <span className="font-mono text-xs tracking-widest text-brass uppercase">Compile</span>
-          <span className="text-line">|</span>
-          <span className="text-sm text-muted">School Edition</span>
+          <span className="hidden text-line sm:inline">|</span>
+          <span className="hidden text-sm text-muted sm:inline">School Edition</span>
         </div>
-        <div className="flex items-center gap-4">
-          <span className="text-sm font-semibold text-navy-deep">{session.name}</span>
+        <div className="flex items-center gap-2 sm:gap-4">
+          <span className="max-w-[100px] truncate text-sm font-semibold text-navy-deep sm:max-w-none">{session.name}</span>
           <span className="rounded bg-navy-deep/10 px-2 py-0.5 font-mono text-xs text-navy-deep">
             Teacher
           </span>
-          <Link href="/school/login" className="text-xs text-muted transition-colors hover:text-navy">
+          <Link href="/school/login" className="hidden text-xs text-muted transition-colors hover:text-navy sm:block">
             Switch account
           </Link>
         </div>
@@ -128,7 +128,7 @@ export default async function TeacherDashboard() {
                 key={lesson.id}
                 className="rounded-[3px] border border-line bg-surface"
               >
-                <div className="flex items-center justify-between px-5 py-4">
+                <div className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <div className="text-sm font-semibold text-navy-deep">
                       {lesson.order}. {lesson.title}
@@ -137,11 +137,13 @@ export default async function TeacherDashboard() {
                       <div className="mt-0.5 max-w-md text-xs text-muted">{lesson.description}</div>
                     )}
                   </div>
-                  <ReleaseToggleButton
-                    lessonId={lesson.id}
-                    classId={classId}
-                    initialReleased={releasedIds.has(lesson.id)}
-                  />
+                  <div className="shrink-0">
+                    <ReleaseToggleButton
+                      lessonId={lesson.id}
+                      classId={classId}
+                      initialReleased={releasedIds.has(lesson.id)}
+                    />
+                  </div>
                 </div>
                 <TeacherLessonPreview
                   lesson={{
@@ -206,7 +208,7 @@ export default async function TeacherDashboard() {
             <div className="space-y-4">
               {pendingSubmissions.map((sub) => (
                 <div key={sub.id} className="rounded-[3px] border border-line bg-surface p-5">
-                  <div className="mb-3 flex items-start justify-between">
+                  <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                       <span className="font-semibold text-sm text-navy-deep">
                         {sub.studentName ?? "Student"}
@@ -218,7 +220,7 @@ export default async function TeacherDashboard() {
                         Submitted {new Date(sub.submittedAt).toLocaleDateString("en-GB")}
                       </p>
                     </div>
-                    <span className="font-mono text-lg font-semibold text-navy-deep">
+                    <span className="font-mono text-lg font-semibold text-navy-deep sm:ml-4 sm:shrink-0">
                       {sub.aiScore}/100
                     </span>
                   </div>

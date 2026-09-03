@@ -111,18 +111,18 @@ export default async function AdminDashboard() {
   return (
     <div className="min-h-screen bg-paper">
       {/* Nav */}
-      <header className="flex items-center justify-between border-b border-line bg-surface px-6 py-4">
-        <div className="flex items-center gap-3">
+      <header className="flex items-center justify-between border-b border-line bg-surface px-4 py-3 sm:px-6 sm:py-4">
+        <div className="flex items-center gap-2 sm:gap-3">
           <span className="font-mono text-xs tracking-widest text-brass uppercase">Compile</span>
-          <span className="text-line">|</span>
-          <span className="text-sm text-muted">School Edition</span>
+          <span className="hidden text-line sm:inline">|</span>
+          <span className="hidden text-sm text-muted sm:inline">School Edition</span>
         </div>
-        <div className="flex items-center gap-4">
-          <span className="text-sm font-semibold text-navy-deep">{session.name}</span>
+        <div className="flex items-center gap-2 sm:gap-4">
+          <span className="max-w-[100px] truncate text-sm font-semibold text-navy-deep sm:max-w-none">{session.name}</span>
           <span className="rounded bg-brass/10 px-2 py-0.5 font-mono text-xs text-brass">
             Admin
           </span>
-          <Link href="/school/login" className="text-xs text-muted transition-colors hover:text-navy">
+          <Link href="/school/login" className="hidden text-xs text-muted transition-colors hover:text-navy sm:block">
             Switch account
           </Link>
         </div>
@@ -177,7 +177,7 @@ export default async function AdminDashboard() {
               return (
                 <div
                   key={cls.id}
-                  className="flex items-center justify-between rounded-[3px] border border-line bg-surface px-5 py-4"
+                  className="flex flex-col gap-3 rounded-[3px] border border-line bg-surface px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <div>
                     <div className="text-sm font-semibold text-navy-deep">{cls.name}</div>
@@ -186,7 +186,7 @@ export default async function AdminDashboard() {
                       {teacher && ` · Teacher: ${teacher}`}
                     </div>
                   </div>
-                  <div className="text-right">
+                  <div className="sm:text-right">
                     <div className="font-mono text-sm text-navy-deep">
                       {students} student{students !== 1 ? "s" : ""}
                     </div>
@@ -205,7 +205,7 @@ export default async function AdminDashboard() {
           <h2 className="mb-4 font-mono text-xs uppercase tracking-widest text-brass">
             Submissions — School Overview
           </h2>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             {[
               { label: "Submitted", value: statsByStatus["submitted"] ?? 0, note: "Awaiting AI grade" },
               { label: "AI graded", value: statsByStatus["ai_graded"] ?? 0, note: "Awaiting teacher review" },

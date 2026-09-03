@@ -100,7 +100,7 @@ export default function TeacherLessonPreview({ lesson }: Props) {
 
           {/* Private AI Q&A */}
           <div>
-            <div className="mb-3 flex items-center gap-2">
+            <div className="mb-3 flex flex-wrap items-center gap-2">
               <span className="font-mono text-xs uppercase tracking-widest text-brass">
                 Private AI notes
               </span>

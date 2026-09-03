@@ -79,8 +79,8 @@ export default async function StudentLessonPage({
 
   return (
     <div className="min-h-screen bg-paper">
-      <header className="flex items-center justify-between border-b border-line bg-surface px-6 py-4">
-        <div className="flex items-center gap-3">
+      <header className="flex items-center justify-between border-b border-line bg-surface px-4 py-3 sm:px-6 sm:py-4">
+        <div className="flex items-center gap-2 sm:gap-3">
           <Link
             href="/school/dashboard/student"
             className="text-xs text-muted transition-colors hover:text-navy"
@@ -88,12 +88,10 @@ export default async function StudentLessonPage({
             ← Back
           </Link>
           <span className="text-line">|</span>
-          <span className="font-mono text-xs tracking-widest text-brass uppercase">
-            Compile
-          </span>
+          <span className="font-mono text-xs tracking-widest text-brass uppercase">Compile</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold text-navy-deep">{session.name}</span>
+          <span className="max-w-[100px] truncate text-sm font-semibold text-navy-deep sm:max-w-none">{session.name}</span>
           <span className="rounded bg-steel/10 px-2 py-0.5 font-mono text-xs text-steel">
             Student
           </span>
@@ -101,7 +99,7 @@ export default async function StudentLessonPage({
       </header>
 
       <main className="mx-auto max-w-4xl space-y-8 px-6 py-8">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="font-serif text-2xl font-semibold text-navy-deep">
               Lesson {lesson.order}: {lesson.title}
