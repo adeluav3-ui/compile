@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
 
 const ACCOUNTS = [
   {
@@ -71,13 +72,15 @@ export default function SchoolDemo() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-paper px-6">
       <div className="mb-10 text-center">
-        <Image
-          src="/images/compile-lockup-navy.svg"
-          alt="Compile"
-          width={120}
-          height={50}
-          className="mx-auto mb-6 h-10 w-auto"
-        />
+        <Link href="/">
+          <Image
+            src="/images/compile-lockup-navy.svg"
+            alt="Compile"
+            width={120}
+            height={50}
+            className="mx-auto mb-6 h-10 w-auto"
+          />
+        </Link>
         <span className="mb-2 block font-mono text-xs tracking-widest text-brass uppercase">
           School Edition — Live Demo
         </span>

@@ -3,6 +3,7 @@
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 const SUPER_ADMIN_EMAIL = "adeluav3@gmail.com";
@@ -72,13 +73,15 @@ function LoginForm() {
     <div className="flex min-h-screen flex-col items-center justify-center bg-paper px-6">
       <div className="w-full max-w-sm">
         <div className="mb-10 text-center">
-          <Image
-            src="/images/compile-lockup-navy.svg"
-            alt="Compile"
-            width={120}
-            height={50}
-            className="mx-auto mb-6 h-10 w-auto"
-          />
+          <Link href="/">
+            <Image
+              src="/images/compile-lockup-navy.svg"
+              alt="Compile"
+              width={120}
+              height={50}
+              className="mx-auto mb-6 h-10 w-auto"
+            />
+          </Link>
           <span className="mb-2 block font-mono text-xs uppercase tracking-widest text-brass">
             School Edition
           </span>
