@@ -39,7 +39,7 @@ export default function NotesSection({ notes }: { notes: string }) {
               ⬇ Print / Save as PDF
             </button>
             <p className="mt-1.5 font-mono text-[10px] text-muted">
-              Use your browser's print dialog and choose "Save as PDF".
+              Use your browser&apos;s print dialog and choose &quot;Save as PDF&quot;.
             </p>
           </div>
         </div>
