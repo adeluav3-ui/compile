@@ -476,7 +476,8 @@ export const submissions = pgTable("submissions", {
   id: uuid("id").primaryKey().defaultRandom(),
   studentId: uuid("student_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
   classId: uuid("class_id").notNull().references(() => classes.id),
-  lessonId: uuid("lesson_id").references(() => lessons.id), // null for standalone exams
+  lessonId: uuid("lesson_id").references(() => lessons.id),
+  assessmentId: uuid("assessment_id"), // FK to assessments added via migration (avoids circular ref)
   type: submissionTypeEnum("type").notNull().default("class_activity"),
   content: text("content").notNull(),             // raw code or external URL
   submittedAt: timestamp("submitted_at", { withTimezone: true }).defaultNow().notNull(),
@@ -505,3 +506,65 @@ export const workspaceSaves = pgTable(
   },
   (t) => [unique().on(t.studentId, t.lessonId)]
 );
+
+// ---------------------------------------------------------------------------
+// Assessments — midterm and exam generation, review, and delivery
+// ---------------------------------------------------------------------------
+
+export const assessmentTypeEnum = pgEnum("assessment_type", ["midterm", "exam"]);
+export const assessmentStatusEnum = pgEnum("assessment_status", [
+  "draft",
+  "questions_generated",
+  "reviewed",
+  "finalized",
+]);
+export const assessmentDeliveryEnum = pgEnum("assessment_delivery", [
+  "in_platform",
+  "export_pdf",
+  "export_csv",
+]);
+export const objSourceEnum = pgEnum("obj_source", ["in_platform", "manual_entry"]);
+
+export const assessments = pgTable("assessments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  classId: uuid("class_id").notNull().references(() => classes.id, { onDelete: "cascade" }),
+  teacherId: uuid("teacher_id").notNull().references(() => profiles.id),
+  type: assessmentTypeEnum("type").notNull(),
+  objQuestionCount: integer("obj_question_count").notNull(), // 20=midterm, 30=exam
+  lessonRangeStartId: uuid("lesson_range_start_id").notNull().references(() => lessons.id),
+  lessonRangeEndId: uuid("lesson_range_end_id").notNull().references(() => lessons.id),
+  status: assessmentStatusEnum("status").notNull().default("draft"),
+  deliveryMethod: assessmentDeliveryEnum("delivery_method"),
+  practicalPrompt: text("practical_prompt"), // AI-generated exercise description
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const assessmentQuestions = pgTable("assessment_questions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  assessmentId: uuid("assessment_id")
+    .notNull()
+    .references(() => assessments.id, { onDelete: "cascade" }),
+  questionText: text("question_text").notNull(),
+  options: jsonb("options").notNull().$type<string[]>(), // 4 plain-text option strings
+  correctOptionIndex: integer("correct_option_index").notNull(), // 0–3
+  sourceLessonId: uuid("source_lesson_id").references(() => lessons.id),
+  orderIndex: integer("order_index").notNull(),
+  aiGenerated: boolean("ai_generated").notNull().default(true),
+  editedByTeacher: boolean("edited_by_teacher").notNull().default(false),
+});
+
+export const assessmentResults = pgTable("assessment_results", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  assessmentId: uuid("assessment_id")
+    .notNull()
+    .references(() => assessments.id, { onDelete: "cascade" }),
+  studentId: uuid("student_id")
+    .notNull()
+    .references(() => profiles.id, { onDelete: "cascade" }),
+  objScore: integer("obj_score"),
+  objSource: objSourceEnum("obj_source"),
+  practicalSubmissionId: uuid("practical_submission_id"), // FK enforced via migration
+  practicalScore: integer("practical_score"),
+  totalScore: integer("total_score"),
+  finalizedAt: timestamp("finalized_at", { withTimezone: true }),
+});

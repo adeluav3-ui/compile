@@ -71,6 +71,136 @@ export async function answerTeacherQuestion(
   return block.type === "text" ? block.text : "(No answer generated)";
 }
 
+export interface GeneratedQuestion {
+  questionText: string;
+  options: string[];
+  correctOptionIndex: number;
+  sourceLessonId: string;
+}
+
+export async function generateAssessmentQuestions(
+  lessonsData: Array<{ id: string; order: number; title: string; notes: string | null }>,
+  questionCount: number,
+  assessmentType: "midterm" | "exam"
+): Promise<{ questions: GeneratedQuestion[]; practicalPrompt: string }> {
+  // Truncate each lesson's notes to keep prompt within limits
+  const lessonContext = lessonsData
+    .map((l) => {
+      const notes = (l.notes ?? "").slice(0, 1800);
+      return `--- Lesson ${l.order}: ${l.title} (ID: ${l.id}) ---\n${notes}`;
+    })
+    .join("\n\n");
+
+  const typeLabel = assessmentType === "midterm" ? "Mid-Term" : "Final Exam";
+
+  const msg = await client.messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 6000,
+    system:
+      "You are an expert secondary school examination setter for Nigerian JSS students. " +
+      "You generate high-quality multiple-choice questions strictly from the lesson content provided. " +
+      "Return ONLY valid JSON — no explanations, no markdown, no text outside the JSON object.",
+    messages: [
+      {
+        role: "user",
+        content: [
+          `Generate exactly ${questionCount} multiple-choice questions for a ${typeLabel} assessment covering these lessons:`,
+          "",
+          lessonContext,
+          "",
+          "Requirements:",
+          `- Exactly ${questionCount} questions total, spread proportionally across all lessons`,
+          "- Each question must have exactly 4 answer options (plain text, no A/B/C/D prefix)",
+          "- correctOptionIndex is 0-based (0=first option is correct, 1=second, etc.)",
+          "- Questions must test real understanding, not just recall of definitions",
+          "- sourceLessonId must be the exact lesson ID string from above",
+          "- Also generate one practical coding exercise appropriate to the material covered",
+          "",
+          'Return ONLY this JSON (no other text):',
+          JSON.stringify({
+            questions: [
+              {
+                questionText: "example question?",
+                options: ["option 1", "option 2", "option 3", "option 4"],
+                correctOptionIndex: 0,
+                sourceLessonId: "the-lesson-uuid-here",
+              },
+            ],
+            practicalPrompt:
+              "Write a complete HTML page that demonstrates...",
+          }),
+        ].join("\n"),
+      },
+    ],
+  });
+
+  const block = msg.content[0];
+  if (block.type !== "text") throw new Error("AI returned no text");
+
+  const jsonMatch = block.text.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error("AI response contained no JSON");
+
+  const parsed = JSON.parse(jsonMatch[0]) as {
+    questions: GeneratedQuestion[];
+    practicalPrompt: string;
+  };
+
+  // Validate + clamp
+  const questions = parsed.questions.slice(0, questionCount).map((q, i) => ({
+    questionText: String(q.questionText ?? ""),
+    options: (Array.isArray(q.options) ? q.options : ["", "", "", ""]).map(String),
+    correctOptionIndex: Math.min(3, Math.max(0, Number(q.correctOptionIndex ?? 0))),
+    sourceLessonId: String(q.sourceLessonId ?? lessonsData[0]?.id ?? ""),
+  }));
+
+  return {
+    questions,
+    practicalPrompt: String(parsed.practicalPrompt ?? "Complete the practical exercise."),
+  };
+}
+
+export async function regenerateSingleQuestion(
+  lessonTitle: string,
+  lessonNotes: string | null,
+  existingQuestions: string[],
+): Promise<GeneratedQuestion & { sourceLessonId: string }> {
+  const notes = (lessonNotes ?? "").slice(0, 2000);
+
+  const msg = await client.messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 800,
+    system: "You generate a single exam question. Return ONLY valid JSON.",
+    messages: [
+      {
+        role: "user",
+        content: [
+          `Generate ONE new multiple-choice question about: ${lessonTitle}`,
+          "",
+          "Lesson content:",
+          notes,
+          "",
+          "These questions already exist (don't duplicate them):",
+          existingQuestions.slice(0, 10).join("\n"),
+          "",
+          'Return ONLY JSON: {"questionText":"...","options":["...","...","...","..."],"correctOptionIndex":0}',
+        ].join("\n"),
+      },
+    ],
+  });
+
+  const block = msg.content[0];
+  if (block.type !== "text") throw new Error("No response");
+  const jsonMatch = block.text.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error("No JSON");
+  const q = JSON.parse(jsonMatch[0]);
+  return {
+    questionText: String(q.questionText ?? ""),
+    options: (Array.isArray(q.options) ? q.options : ["", "", "", ""]).map(String),
+    correctOptionIndex: Math.min(3, Math.max(0, Number(q.correctOptionIndex ?? 0))),
+    sourceLessonId: "",
+  };
+}
+
 export async function gradeSubmission(
   lessonTitle: string,
   rubric: string,

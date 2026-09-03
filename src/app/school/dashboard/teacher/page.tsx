@@ -112,9 +112,17 @@ export default async function TeacherDashboard() {
       </header>
 
       <main className="mx-auto max-w-4xl space-y-10 px-6 py-8">
-        <div>
-          <h1 className="font-serif text-2xl font-semibold text-navy-deep">{cls.name}</h1>
-          <p className="mt-1 text-sm text-muted">{cls.level} · {cls.academicYear}</p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="font-serif text-2xl font-semibold text-navy-deep">{cls.name}</h1>
+            <p className="mt-1 text-sm text-muted">{cls.level} · {cls.academicYear}</p>
+          </div>
+          <Link
+            href="/school/dashboard/teacher/assessments"
+            className="shrink-0 rounded-[3px] border border-line bg-surface px-4 py-2 font-mono text-xs text-navy hover:border-navy"
+          >
+            Assessments →
+          </Link>
         </div>
 
         {/* ── Lessons ── */}
