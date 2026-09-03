@@ -113,8 +113,8 @@ async function main() {
       order: 2,
       gradingRubric: "Award marks for: correctly naming and describing CPU (20pts), memory vs storage distinction (20pts), at least two input devices and two output devices (20pts), a clear explanation of how the parts work together (40pts).",
       notesUrl: null,
-      videoId: null,
-      videoProvider: null,
+      videoId: "UTdwFOiVYyA",
+      videoProvider: "youtube",
     },
     {
       id: "f0000000-0000-0000-0000-000000000003",
@@ -123,8 +123,8 @@ async function main() {
       order: 3,
       gradingRubric: "Award marks for: explaining what an IP address is (20pts), explaining DNS in simple terms (20pts), distinguishing a server from a client (20pts), describing how a web page gets to your screen step by step (40pts).",
       notesUrl: null,
-      videoId: null,
-      videoProvider: null,
+      videoId: "YuirgJTKsBE",
+      videoProvider: "youtube",
     },
     {
       id: "f0000000-0000-0000-0000-000000000004",
