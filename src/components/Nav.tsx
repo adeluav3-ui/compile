@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 
 type NavLink = {
-  href: "/" | "/cohort" | "/individual" | "/school" | "/contact";
+  href: "/" | "/cohort" | "/individual" | "/school" | "/contact" | "/school/login";
   label: string;
   pill?: string;
 };
@@ -16,6 +16,7 @@ const links: NavLink[] = [
   { href: "/individual", label: "Individual", pill: "Waitlist" },
   { href: "/school", label: "For Schools", pill: "Soon" },
   { href: "/contact", label: "Contact" },
+  { href: "/school/login", label: "School Login" },
 ];
 
 export default function Nav() {

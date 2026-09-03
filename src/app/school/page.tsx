@@ -31,7 +31,7 @@ export default function SchoolPage() {
           </p>
           <div className="mb-3 flex justify-center">
             <Link
-              href="/school/login"
+              href="/school/demo"
               className="rounded-[2px] bg-navy px-6 py-[11px] text-sm font-semibold text-white transition-colors hover:bg-navy-deep"
             >
               Try the live demo →
@@ -167,7 +167,7 @@ export default function SchoolPage() {
             no sales call, no waiting.
           </p>
           <Link
-            href="/school/login"
+            href="/school/demo"
             className="inline-block rounded-[2px] bg-navy px-8 py-3 text-sm font-semibold text-white transition-colors hover:bg-navy-deep"
           >
             Open the live demo →
