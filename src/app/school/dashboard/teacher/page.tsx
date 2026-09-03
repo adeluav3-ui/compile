@@ -15,6 +15,7 @@ import Link from "next/link";
 import ReleaseToggleButton from "./ReleaseToggleButton";
 import QAReplyForm from "./QAReplyForm";
 import GradeConfirm from "./GradeConfirm";
+import TeacherLessonPreview from "./TeacherLessonPreview";
 
 export default async function TeacherDashboard() {
   const session = await getSchoolSession();
@@ -125,20 +126,32 @@ export default async function TeacherDashboard() {
             {allLessons.map((lesson) => (
               <div
                 key={lesson.id}
-                className="flex items-center justify-between rounded-[3px] border border-line bg-surface px-5 py-4"
+                className="rounded-[3px] border border-line bg-surface"
               >
-                <div>
-                  <div className="text-sm font-semibold text-navy-deep">
-                    {lesson.order}. {lesson.title}
+                <div className="flex items-center justify-between px-5 py-4">
+                  <div>
+                    <div className="text-sm font-semibold text-navy-deep">
+                      {lesson.order}. {lesson.title}
+                    </div>
+                    {lesson.description && (
+                      <div className="mt-0.5 max-w-md text-xs text-muted">{lesson.description}</div>
+                    )}
                   </div>
-                  {lesson.description && (
-                    <div className="mt-0.5 max-w-md text-xs text-muted">{lesson.description}</div>
-                  )}
+                  <ReleaseToggleButton
+                    lessonId={lesson.id}
+                    classId={classId}
+                    initialReleased={releasedIds.has(lesson.id)}
+                  />
                 </div>
-                <ReleaseToggleButton
-                  lessonId={lesson.id}
-                  classId={classId}
-                  initialReleased={releasedIds.has(lesson.id)}
+                <TeacherLessonPreview
+                  lesson={{
+                    id: lesson.id,
+                    title: lesson.title,
+                    description: lesson.description ?? null,
+                    videoId: lesson.videoId ?? null,
+                    videoProvider: lesson.videoProvider ?? null,
+                    order: lesson.order,
+                  }}
                 />
               </div>
             ))}

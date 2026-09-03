@@ -222,7 +222,18 @@ async function main() {
     await db
       .insert(schema.lessons)
       .values({ ...l, subjectId, level: "JSS1", type: "video" })
-      .onConflictDoNothing();
+      .onConflictDoUpdate({
+        target: schema.lessons.id,
+        set: {
+          title: l.title,
+          description: l.description,
+          order: l.order,
+          gradingRubric: l.gradingRubric,
+          notesUrl: l.notesUrl,
+          videoId: l.videoId,
+          videoProvider: l.videoProvider,
+        },
+      });
   }
 
   console.log("✓ Lessons");

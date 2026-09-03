@@ -418,6 +418,20 @@ export const lessonQuestions = pgTable("lesson_questions", {
 });
 
 // ---------------------------------------------------------------------------
+// Teacher private questions — not visible to students
+// ---------------------------------------------------------------------------
+
+export const teacherQuestions = pgTable("teacher_questions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  lessonId: uuid("lesson_id").notNull().references(() => lessons.id, { onDelete: "cascade" }),
+  teacherId: uuid("teacher_id").notNull().references(() => profiles.id),
+  schoolId: uuid("school_id").notNull().references(() => schools.id),
+  questionText: text("question_text").notNull(),
+  aiAnswer: text("ai_answer"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+// ---------------------------------------------------------------------------
 // AI queue — offline-safe queue for Q&A answers and submission grading
 // When offline, rows are inserted here; a flush job processes them on reconnect.
 // ---------------------------------------------------------------------------

@@ -43,6 +43,34 @@ export async function answerLessonQuestion(
   return block.type === "text" ? block.text : "(No answer generated)";
 }
 
+export async function answerTeacherQuestion(
+  lessonTitle: string,
+  lessonDescription: string | null,
+  questionText: string
+): Promise<string> {
+  const context = lessonDescription
+    ? `Lesson: ${lessonTitle}. Topic summary: ${lessonDescription}`
+    : `Lesson: ${lessonTitle}`;
+
+  const msg = await client.messages.create({
+    model: "claude-haiku-4-5-20251001",
+    max_tokens: 768,
+    system:
+      "You are an expert coding education assistant helping a secondary school teacher prepare and deliver a lesson. " +
+      `The lesson is: ${context}. ` +
+      "Answer the teacher's questions about this lesson thoroughly — you can go deeper than you would for a student. " +
+      "Help the teacher understand the concept well enough to explain it clearly, anticipate student confusion, and give good examples. " +
+      "Write in plain, clear sentences — no markdown, no asterisks, no hashes, no bullet symbols, no bold or italic formatting. " +
+      "Never use symbols like *, **, #, ##, -, or backticks. " +
+      "Structure your answer in short, clearly separated paragraphs with a blank line between each. " +
+      "If you give a code example, introduce it with 'Here is an example:' on its own line, then write the code on separate lines below it.",
+    messages: [{ role: "user", content: questionText }],
+  });
+
+  const block = msg.content[0];
+  return block.type === "text" ? block.text : "(No answer generated)";
+}
+
 export async function gradeSubmission(
   lessonTitle: string,
   rubric: string,
