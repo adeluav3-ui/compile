@@ -119,6 +119,13 @@ export default function SchoolDemo() {
           Sign in here →
         </a>
       </p>
+
+      <Link
+        href="/"
+        className="mt-4 rounded-[3px] border border-line bg-surface px-4 py-2 font-mono text-xs text-muted hover:border-navy hover:text-navy"
+      >
+        ← Back to home
+      </Link>
     </div>
   );
 }
