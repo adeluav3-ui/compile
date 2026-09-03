@@ -153,6 +153,7 @@ export default async function TeacherDashboard() {
                     videoId: lesson.videoId ?? null,
                     videoProvider: lesson.videoProvider ?? null,
                     order: lesson.order,
+                    notes: lesson.notes ?? null,
                   }}
                 />
               </div>

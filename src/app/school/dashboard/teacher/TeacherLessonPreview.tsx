@@ -1,6 +1,12 @@
 "use client";
 
 import { useState, useRef } from "react";
+import dynamic from "next/dynamic";
+
+const MarkdownRenderer = dynamic(() => import("@/components/school/MarkdownRenderer"), {
+  ssr: false,
+  loading: () => <p className="text-sm text-muted">Loading notes…</p>,
+});
 
 type TeacherQuestion = {
   id: string;
@@ -17,6 +23,7 @@ type Props = {
     videoId: string | null;
     videoProvider: string | null;
     order: number;
+    notes: string | null;
   };
 };
 
@@ -97,6 +104,18 @@ export default function TeacherLessonPreview({ lesson }: Props) {
               </div>
             )}
           </div>
+
+          {/* Lesson notes */}
+          {lesson.notes && (
+            <div>
+              <div className="mb-3 font-mono text-xs uppercase tracking-widest text-brass">
+                Lesson Notes
+              </div>
+              <div className="rounded-[3px] border border-line bg-paper px-4 py-4 text-sm">
+                <MarkdownRenderer content={lesson.notes} />
+              </div>
+            </div>
+          )}
 
           {/* Private AI Q&A */}
           <div>

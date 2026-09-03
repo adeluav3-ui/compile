@@ -6,6 +6,7 @@ import { and, eq, asc } from "drizzle-orm";
 import Link from "next/link";
 import CodeWorkspace from "@/components/school/CodeWorkspace";
 import QAThread, { type QAItem } from "@/components/school/QAThread";
+import NotesSection from "@/components/school/NotesSection";
 
 export default async function StudentLessonPage({
   params,
@@ -99,23 +100,12 @@ export default async function StudentLessonPage({
       </header>
 
       <main className="mx-auto max-w-4xl space-y-8 px-6 py-8">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h1 className="font-serif text-2xl font-semibold text-navy-deep">
-              Lesson {lesson.order}: {lesson.title}
-            </h1>
-            {lesson.description && (
-              <p className="mt-2 max-w-xl text-sm text-muted">{lesson.description}</p>
-            )}
-          </div>
-          {lesson.notesUrl && (
-            <a
-              href={lesson.notesUrl}
-              download
-              className="flex flex-shrink-0 items-center gap-2 rounded-[3px] border border-line bg-surface px-4 py-2 font-mono text-xs text-navy transition-colors hover:border-navy"
-            >
-              ↓ Lesson Notes
-            </a>
+        <div>
+          <h1 className="font-serif text-2xl font-semibold text-navy-deep">
+            Lesson {lesson.order}: {lesson.title}
+          </h1>
+          {lesson.description && (
+            <p className="mt-2 max-w-xl text-sm text-muted">{lesson.description}</p>
           )}
         </div>
 
@@ -145,6 +135,12 @@ export default async function StudentLessonPage({
             )}
           </div>
         </section>
+
+        {lesson.notes && (
+          <section>
+            <NotesSection notes={lesson.notes} />
+          </section>
+        )}
 
         <section>
           <h2 className="mb-3 font-mono text-xs uppercase tracking-widest text-brass">

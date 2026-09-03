@@ -298,6 +298,7 @@ export const lessons = pgTable("lessons", {
   videoProvider: text("video_provider"), // "youtube" | "vdocipher"
   notesUrl: text("notes_url"),           // PDF/PPT download path
   gradingRubric: text("grading_rubric"), // plain-text rubric fed to AI for grading
+  notes: text("notes"),                  // full markdown lesson notes
   durationMinutes: integer("duration_minutes"),
   order: integer("order").notNull().default(0),
   publishedAt: timestamp("published_at", { withTimezone: true }),
