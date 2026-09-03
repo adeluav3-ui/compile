@@ -86,30 +86,135 @@ async function main() {
   console.log("✓ Subject:", subjectId);
 
   // 7. Lessons
-  const lessonDefs = [
+  const lessonDefs: {
+    id: string;
+    title: string;
+    description: string;
+    order: number;
+    gradingRubric: string;
+    notesUrl: string | null;
+    videoId: string | null;
+    videoProvider: string | null;
+  }[] = [
     {
       id: "f0000000-0000-0000-0000-000000000001",
-      title: "Introduction to HTML",
-      description: "What HTML is and how browsers read it. Structure, tags, and your first webpage.",
+      title: "Welcome to the Course",
+      description: "An introduction to the course, what you will build, and how the lessons work.",
       order: 1,
-      gradingRubric: "Award marks for: correct DOCTYPE declaration (10pts), proper html/head/body structure (20pts), at least one heading and paragraph (20pts), correct use of at least 3 different tags (30pts), valid overall structure with no syntax errors (20pts).",
-      notesUrl: "/demo-assets/lesson-01-intro-to-html.pdf",
+      gradingRubric: "No practical submission for this lesson. Mark complete on attendance.",
+      notesUrl: null,
+      videoId: "iqeOqKOo-P4",
+      videoProvider: "youtube",
     },
     {
       id: "f0000000-0000-0000-0000-000000000002",
-      title: "HTML Structure & Semantics",
-      description: "Semantic elements: header, nav, main, section, article, footer. Why they matter.",
+      title: "What Is A Computer, Really?",
+      description: "Inside a computer — CPU, memory, storage, and input/output. How the parts work together.",
       order: 2,
-      gradingRubric: "Award marks for: using at least 4 semantic elements correctly (40pts), logical content hierarchy (30pts), code readability and indentation (20pts), valid HTML5 (10pts).",
-      notesUrl: "/demo-assets/lesson-02-semantics.pdf",
+      gradingRubric: "Award marks for: correctly naming and describing CPU (20pts), memory vs storage distinction (20pts), at least two input devices and two output devices (20pts), a clear explanation of how the parts work together (40pts).",
+      notesUrl: null,
+      videoId: null,
+      videoProvider: null,
     },
     {
       id: "f0000000-0000-0000-0000-000000000003",
-      title: "Styling with CSS",
-      description: "Selectors, properties, values. The box model. Colour and typography.",
+      title: "What Is The Internet?",
+      description: "How data travels across networks. IP addresses, DNS, servers, and clients — explained plainly.",
       order: 3,
-      gradingRubric: "Award marks for: correct selector syntax (20pts), box model use (border/padding/margin) (20pts), colour and font styling applied (20pts), linked or embedded stylesheet (20pts), visual output matches stated goal (20pts).",
+      gradingRubric: "Award marks for: explaining what an IP address is (20pts), explaining DNS in simple terms (20pts), distinguishing a server from a client (20pts), describing how a web page gets to your screen step by step (40pts).",
       notesUrl: null,
+      videoId: null,
+      videoProvider: null,
+    },
+    {
+      id: "f0000000-0000-0000-0000-000000000004",
+      title: "Digital Literacy Essentials",
+      description: "File management, safe browsing, passwords, and the basics of staying secure online.",
+      order: 4,
+      gradingRubric: "Award marks for: describing good password practice (20pts), identifying at least two online safety risks (20pts), explaining what a file path is (20pts), demonstrating correct folder/file organisation (40pts).",
+      notesUrl: null,
+      videoId: null,
+      videoProvider: null,
+    },
+    {
+      id: "f0000000-0000-0000-0000-000000000005",
+      title: "What Is Code?",
+      description: "What source code is, how computers execute instructions, and why programming languages exist.",
+      order: 5,
+      gradingRubric: "Award marks for: defining source code accurately (20pts), explaining why programming languages exist (20pts), describing what a compiler or interpreter does (20pts), giving a real-world analogy for how instructions work (40pts).",
+      notesUrl: null,
+      videoId: null,
+      videoProvider: null,
+    },
+    {
+      id: "f0000000-0000-0000-0000-000000000006",
+      title: "Problem-Solving Thinking",
+      description: "Breaking problems into steps. How programmers think before they write a single line of code.",
+      order: 6,
+      gradingRubric: "Award marks for: correctly decomposing a given problem into smaller steps (40pts), identifying inputs and expected outputs (30pts), describing the process in plain language before writing any code (30pts).",
+      notesUrl: null,
+      videoId: null,
+      videoProvider: null,
+    },
+    {
+      id: "f0000000-0000-0000-0000-000000000007",
+      title: "Patterns & Flowcharts",
+      description: "Reading and drawing flowcharts. Recognising patterns in instructions and everyday processes.",
+      order: 7,
+      gradingRubric: "Award marks for: using correct flowchart symbols (start/end, process, decision) (30pts), drawing a complete flowchart for a given scenario (40pts), identifying the pattern or repeating logic (30pts).",
+      notesUrl: null,
+      videoId: null,
+      videoProvider: null,
+    },
+    {
+      id: "f0000000-0000-0000-0000-000000000008",
+      title: "What Is HTML?",
+      description: "HTML as the structure of every webpage. Tags, elements, attributes, and your first document.",
+      order: 8,
+      gradingRubric: "Award marks for: correct DOCTYPE and html/head/body structure (30pts), at least three different tags used correctly (30pts), at least one attribute used correctly (20pts), valid document that opens in a browser (20pts).",
+      notesUrl: null,
+      videoId: null,
+      videoProvider: null,
+    },
+    {
+      id: "f0000000-0000-0000-0000-000000000009",
+      title: "Headings, Paragraphs & Lists",
+      description: "Using h1–h6, p, ul, ol, and li to organise content. Hierarchy and readability in practice.",
+      order: 9,
+      gradingRubric: "Award marks for: correct use of at least three heading levels (20pts), paragraphs with meaningful content (20pts), one unordered list and one ordered list (30pts), logical content hierarchy throughout (30pts).",
+      notesUrl: null,
+      videoId: null,
+      videoProvider: null,
+    },
+    {
+      id: "f0000000-0000-0000-0000-000000000010",
+      title: "Links & Images",
+      description: "Anchor tags, href, and making pages interconnected. Embedding images with alt text.",
+      order: 10,
+      gradingRubric: "Award marks for: working hyperlink to an external page (25pts), working internal link between two pages (25pts), image with correct src and meaningful alt attribute (30pts), page opens correctly in browser (20pts).",
+      notesUrl: null,
+      videoId: null,
+      videoProvider: null,
+    },
+    {
+      id: "f0000000-0000-0000-0000-000000000011",
+      title: "What Is CSS?",
+      description: "How CSS controls colour, font, and layout. Selectors, properties, and linking a stylesheet.",
+      order: 11,
+      gradingRubric: "Award marks for: correctly linked external stylesheet (20pts), at least three different properties applied (30pts), correct selector syntax throughout (20pts), visible styled output in browser (30pts).",
+      notesUrl: null,
+      videoId: null,
+      videoProvider: null,
+    },
+    {
+      id: "f0000000-0000-0000-0000-000000000012",
+      title: "The Box Model & Layout",
+      description: "Every element is a box. Margin, border, padding, and width. Building a simple page layout.",
+      order: 12,
+      gradingRubric: "Award marks for: correct use of margin and padding (20pts), visible border on at least one element (15pts), width or max-width applied to a container (15pts), a two-section layout (side by side or stacked) using the box model (50pts).",
+      notesUrl: null,
+      videoId: null,
+      videoProvider: null,
     },
   ];
 

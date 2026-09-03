@@ -123,16 +123,26 @@ export default async function StudentLessonPage({
 
         <section>
           <h2 className="mb-3 font-mono text-xs uppercase tracking-widest text-brass">Video</h2>
-          <div className="flex aspect-video items-center justify-center rounded-[3px] border border-line bg-surface">
-            {lesson.contentUrl ? (
-              <video className="h-full w-full rounded-[3px]" controls>
+          <div className="overflow-hidden rounded-[3px] border border-line bg-surface" style={{ aspectRatio: "16/9" }}>
+            {lesson.videoId && lesson.videoProvider === "youtube" ? (
+              <iframe
+                src={`https://www.youtube-nocookie.com/embed/${lesson.videoId}?modestbranding=1&rel=0&iv_load_policy=3`}
+                className="h-full w-full"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                title={lesson.title}
+              />
+            ) : lesson.contentUrl ? (
+              <video className="h-full w-full" controls>
                 <source src={lesson.contentUrl} />
               </video>
             ) : (
-              <div className="text-center">
-                <div className="mb-2 text-4xl text-muted">▶</div>
-                <p className="text-sm text-muted">Video syncs from the school server.</p>
-                <p className="mt-1 font-mono text-xs text-muted">{lesson.title}</p>
+              <div className="flex h-full items-center justify-center">
+                <div className="text-center">
+                  <div className="mb-2 text-4xl text-muted">▶</div>
+                  <p className="text-sm text-muted">Video coming soon.</p>
+                  <p className="mt-1 font-mono text-xs text-muted">{lesson.title}</p>
+                </div>
               </div>
             )}
           </div>

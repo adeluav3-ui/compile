@@ -293,7 +293,9 @@ export const lessons = pgTable("lessons", {
   title: text("title").notNull(),
   description: text("description"),
   type: lessonTypeEnum("type").notNull().default("video"),
-  contentUrl: text("content_url"),       // video ID/path — encrypted at rest for School Edition
+  contentUrl: text("content_url"),       // local file path for School Edition LAN delivery
+  videoId: text("video_id"),             // YouTube or VdoCipher video ID
+  videoProvider: text("video_provider"), // "youtube" | "vdocipher"
   notesUrl: text("notes_url"),           // PDF/PPT download path
   gradingRubric: text("grading_rubric"), // plain-text rubric fed to AI for grading
   durationMinutes: integer("duration_minutes"),
