@@ -70,13 +70,11 @@ function LoginForm() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-paper px-6">
+    <div className="relative flex min-h-screen flex-col items-center justify-center bg-paper px-6">
+      <Link href="/" className="absolute left-4 top-4 font-mono text-xs text-muted hover:text-navy sm:left-6 sm:top-6">
+        ← Back to home
+      </Link>
       <div className="w-full max-w-sm">
-        <div className="mb-6 text-center">
-          <Link href="/" className="inline-block rounded-[3px] border border-line bg-surface px-4 py-2 font-mono text-xs text-muted hover:border-navy hover:text-navy">
-            ← Back to home
-          </Link>
-        </div>
         <div className="mb-10 text-center">
           <Link href="/">
             <Image
