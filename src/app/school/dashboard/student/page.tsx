@@ -9,6 +9,7 @@ import DashboardHeader from "@/components/school/DashboardHeader";
 export default async function StudentDashboard() {
   const session = await getSchoolSession();
   if (!session || session.role !== "student") redirect("/school/login");
+  if (session.subscriptionBlocked) redirect("/school/suspended");
 
   const classId = session.classId!;
   const [cls] = await db.select().from(classes).where(eq(classes.id, classId));

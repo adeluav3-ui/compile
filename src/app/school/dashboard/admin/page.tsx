@@ -18,6 +18,7 @@ import DashboardHeader from "@/components/school/DashboardHeader";
 export default async function AdminDashboard() {
   const session = await getSchoolSession();
   if (!session || session.role !== "school_admin") redirect("/school/login");
+  if (session.subscriptionBlocked) redirect("/school/suspended");
 
   const schoolId = session.schoolId;
 

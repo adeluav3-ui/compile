@@ -19,6 +19,8 @@ export interface SchoolSession {
   name: string;
   /** true when session comes from Supabase Auth (not demo cookie) */
   isReal?: boolean;
+  /** true when school's subscription is expired or revoked */
+  subscriptionBlocked?: boolean;
 }
 
 const DEMO_COOKIE = "school_session";
@@ -51,6 +53,22 @@ export async function getSchoolSession(): Promise<SchoolSession | null> {
   }
 }
 
+async function isSubscriptionActive(schoolId: string): Promise<boolean> {
+  const [school] = await db
+    .select({ status: schools.subscriptionStatus, expiresAt: schools.subscriptionExpiresAt })
+    .from(schools)
+    .where(eq(schools.id, schoolId))
+    .limit(1);
+  if (!school) return false;
+  if (school.status === "trial") return true;
+  if (school.status === "expired") return false;
+  // active: allow if no expiry (forever) or expiry is in the future
+  if (school.status === "active") {
+    return !school.expiresAt || new Date(school.expiresAt) > new Date();
+  }
+  return false;
+}
+
 async function buildSessionFromUser(userId: string): Promise<SchoolSession | null> {
   const [row] = await db
     .select({ name: profiles.fullName, role: userRoles.role })
@@ -73,11 +91,13 @@ async function buildSessionFromUser(userId: string): Promise<SchoolSession | nul
       .where(eq(schools.adminId, userId))
       .limit(1);
     if (!school) return null;
+    const active = await isSubscriptionActive(school.id);
     return {
       profileId: userId,
       role: "school_admin",
       schoolId: school.id,
       name: row.name ?? "Admin",
+      subscriptionBlocked: active ? undefined : true,
     };
   }
 
@@ -88,12 +108,14 @@ async function buildSessionFromUser(userId: string): Promise<SchoolSession | nul
       .where(eq(teacherAssignments.profileId, userId))
       .limit(1);
     if (!assign) return null;
+    const active = await isSubscriptionActive(assign.schoolId);
     return {
       profileId: userId,
       role: "teacher",
       schoolId: assign.schoolId,
       classId: assign.classId,
       name: row.name ?? "Teacher",
+      subscriptionBlocked: active ? undefined : true,
     };
   }
 
@@ -105,12 +127,14 @@ async function buildSessionFromUser(userId: string): Promise<SchoolSession | nul
       .where(eq(studentClasses.profileId, userId))
       .limit(1);
     if (!sc) return null;
+    const active = await isSubscriptionActive(sc.schoolId);
     return {
       profileId: userId,
       role: "student",
       schoolId: sc.schoolId,
       classId: sc.classId,
       name: row.name ?? "Student",
+      subscriptionBlocked: active ? undefined : true,
     };
   }
 
