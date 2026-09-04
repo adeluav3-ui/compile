@@ -2,8 +2,9 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { db } from "@/db";
-import { schools, profiles, userRoles, teacherAssignments, studentClasses, classes } from "@/db/schema";
+import { schools, userRoles, teacherAssignments, studentClasses, classes } from "@/db/schema";
 import { eq, and, inArray } from "drizzle-orm";
+import { verifyLocalSessionToken, LOCAL_SESSION_COOKIE } from "@/lib/local-auth";
 
 export const runtime = "nodejs";
 
@@ -87,7 +88,9 @@ async function resolveSchoolIdForUser(userId: string): Promise<string | null> {
   return null;
 }
 
-async function fetchSubscriptionFromDb(schoolId: string): Promise<{ status: string; expiresAt: string | null } | null> {
+async function fetchSubscriptionFromDb(
+  schoolId: string
+): Promise<{ status: string; expiresAt: string | null } | null> {
   const [school] = await db
     .select({ status: schools.subscriptionStatus, expiresAt: schools.subscriptionExpiresAt })
     .from(schools)
@@ -114,6 +117,70 @@ function buildSuspendedRedirect(
     url.searchParams.set("lastVerified", cache.lastVerifiedAt);
   }
   return NextResponse.redirect(url);
+}
+
+/**
+ * Check subscription status for a given schoolId using cache + DB.
+ * Returns { blocked: false, cache, response } on pass, or { blocked: true, response } on block.
+ */
+async function checkSubscription(
+  request: NextRequest,
+  schoolId: string,
+  isApiRoute: boolean,
+  baseResponse: NextResponse
+): Promise<{ blocked: false; cache: SubCache; response: NextResponse } | { blocked: true; response: NextResponse }> {
+  const cache = readSubCache(request);
+  const now = new Date();
+  const cacheAge = cache ? now.getTime() - new Date(cache.lastVerifiedAt).getTime() : Infinity;
+  const needsRefresh = !cache || cacheAge > REFRESH_INTERVAL_MS || cache.schoolId !== schoolId;
+
+  let resolvedCache = cache;
+  let dbReachable = true;
+
+  if (needsRefresh) {
+    try {
+      const sub = await fetchSubscriptionFromDb(schoolId);
+      if (!sub) {
+        if (isApiRoute) {
+          return { blocked: true, response: NextResponse.json({ error: "School not found" }, { status: 403 }) };
+        }
+        return { blocked: true, response: buildSuspendedRedirect(request, "expired", cache) };
+      }
+      resolvedCache = {
+        schoolId,
+        status: sub.status,
+        expiresAt: sub.expiresAt,
+        lastVerifiedAt: now.toISOString(),
+      };
+    } catch {
+      dbReachable = false;
+    }
+  }
+
+  // Evaluate subscription
+  if (!dbReachable || resolvedCache === null) {
+    if (!resolvedCache) {
+      if (isApiRoute) return { blocked: true, response: NextResponse.json({ error: "Subscription unverifiable" }, { status: 503 }) };
+      return { blocked: true, response: buildSuspendedRedirect(request, "unverifiable", null) };
+    }
+    const gracePeriodExceeded = cacheAge > GRACE_PERIOD_MS;
+    if (gracePeriodExceeded) {
+      if (isApiRoute) return { blocked: true, response: NextResponse.json({ error: "Subscription unverifiable" }, { status: 503 }) };
+      return { blocked: true, response: buildSuspendedRedirect(request, "unverifiable", resolvedCache) };
+    }
+    if (!isActiveFromCache(resolvedCache)) {
+      if (isApiRoute) return { blocked: true, response: NextResponse.json({ error: "Subscription expired" }, { status: 403 }) };
+      return { blocked: true, response: buildSuspendedRedirect(request, "expired", resolvedCache) };
+    }
+    return { blocked: false, cache: resolvedCache, response: baseResponse };
+  }
+
+  if (!isActiveFromCache(resolvedCache)) {
+    if (isApiRoute) return { blocked: true, response: NextResponse.json({ error: "Subscription expired" }, { status: 403 }) };
+    return { blocked: true, response: buildSuspendedRedirect(request, "expired", resolvedCache) };
+  }
+
+  return { blocked: false, cache: resolvedCache, response: baseResponse };
 }
 
 export async function middleware(request: NextRequest) {
@@ -162,113 +229,69 @@ export async function middleware(request: NextRequest) {
   }
 
   const hasDemoCookie = !!request.cookies.get("school_session")?.value;
+  const localToken = request.cookies.get(LOCAL_SESSION_COOKIE)?.value;
 
-  // Demo sessions bypass subscription checks entirely
-  if (!user && hasDemoCookie) {
+  // ── Demo sessions bypass all checks ────────────────────────────────────────
+  if (!user && hasDemoCookie && !localToken) {
     return supabaseResponse;
   }
 
-  // No session at all → redirect to login (API routes get 401)
-  if (!user) {
-    if (isSchoolApi) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // ── Supabase session — full subscription check ──────────────────────────────
+  if (user) {
+    const schoolId = await resolveSchoolIdForUser(user.id).catch(() => null);
+    if (!schoolId) {
+      // Supabase user but not a school role — let through (might be valid for other reasons)
+      return supabaseResponse;
     }
-    const url = request.nextUrl.clone();
-    url.pathname = "/school/login";
-    return NextResponse.redirect(url);
+
+    const result = await checkSubscription(request, schoolId, isSchoolApi, supabaseResponse);
+    if (result.blocked) return result.response;
+
+    // Write refreshed cache to response
+    const response = NextResponse.next({ request });
+    supabaseResponse.cookies.getAll().forEach(({ name, value }) => response.cookies.set(name, value));
+    response.cookies.set(SUB_CACHE_COOKIE, encodeSubCache(result.cache), {
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 30,
+    });
+    return response;
   }
 
-  // ── Subscription check for real Supabase sessions ───────────────────────────
-  const cache = readSubCache(request);
-  const now = new Date();
-  const cacheAge = cache ? now.getTime() - new Date(cache.lastVerifiedAt).getTime() : Infinity;
-  const needsRefresh = cacheAge > REFRESH_INTERVAL_MS;
-
-  let resolvedCache: SubCache | null = cache;
-  let dbReachable = true;
-
-  if (needsRefresh) {
-    try {
-      const schoolId = cache?.schoolId ?? (await resolveSchoolIdForUser(user.id));
-      if (!schoolId) {
-        // Not a school user — let through (super admin using school routes, etc.)
-        return supabaseResponse;
-      }
-      const sub = await fetchSubscriptionFromDb(schoolId);
-      if (!sub) {
-        // School record not found
-        if (isSchoolApi) {
-          return NextResponse.json({ error: "School not found" }, { status: 403 });
-        }
-        return buildSuspendedRedirect(request, "expired", cache);
-      }
-      resolvedCache = {
-        schoolId,
-        status: sub.status,
-        expiresAt: sub.expiresAt,
-        lastVerifiedAt: now.toISOString(),
-      };
-    } catch {
-      dbReachable = false;
+  // ── Local session (offline Electron build) ──────────────────────────────────
+  if (localToken) {
+    const localSession = await verifyLocalSessionToken(localToken);
+    if (!localSession) {
+      // Expired or tampered token
+      if (isSchoolApi) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      const url = request.nextUrl.clone();
+      url.pathname = "/school/login";
+      return NextResponse.redirect(url);
     }
+
+    // Check subscription using cache only — DB may be unreachable offline
+    const result = await checkSubscription(request, localSession.schoolId, isSchoolApi, supabaseResponse);
+    if (result.blocked) return result.response;
+
+    // Write cache — lastVerifiedAt inside the cookie preserves when DB was last reached
+    const response = NextResponse.next({ request });
+    response.cookies.set(SUB_CACHE_COOKIE, encodeSubCache(result.cache), {
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 30,
+    });
+    return response;
   }
 
-  // ── Evaluate subscription status ─────────────────────────────────────────────
-  if (!dbReachable || resolvedCache === null) {
-    // Can't reach DB and no usable cache
-    if (!resolvedCache) {
-      // Never verified at all — block
-      if (isSchoolApi) {
-        return NextResponse.json({ error: "Subscription unverifiable" }, { status: 503 });
-      }
-      return buildSuspendedRedirect(request, "unverifiable", null);
-    }
-
-    // Have a cache but DB was unreachable — check grace period
-    const gracePeriodExceeded = cacheAge > GRACE_PERIOD_MS;
-    if (gracePeriodExceeded) {
-      if (isSchoolApi) {
-        return NextResponse.json({ error: "Subscription unverifiable" }, { status: 503 });
-      }
-      return buildSuspendedRedirect(request, "unverifiable", resolvedCache);
-    }
-
-    // Within grace period — use cached value
-    if (!isActiveFromCache(resolvedCache)) {
-      if (isSchoolApi) {
-        return NextResponse.json({ error: "Subscription expired" }, { status: 403 });
-      }
-      return buildSuspendedRedirect(request, "expired", resolvedCache);
-    }
-
-    // Graceful pass — don't update cookie since DB was unreachable
-    return supabaseResponse;
+  // ── No valid session ────────────────────────────────────────────────────────
+  if (isSchoolApi) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-
-  // DB was reachable — check fresh/refreshed cache
-  const isActive = isActiveFromCache(resolvedCache);
-
-  if (!isActive) {
-    if (isSchoolApi) {
-      return NextResponse.json({ error: "Subscription expired" }, { status: 403 });
-    }
-    return buildSuspendedRedirect(request, "expired", resolvedCache);
-  }
-
-  // Active — write updated cache cookie to response
-  const response = NextResponse.next({ request });
-  // Copy over Supabase auth cookies
-  supabaseResponse.cookies.getAll().forEach(({ name, value }) => {
-    response.cookies.set(name, value);
-  });
-  response.cookies.set(SUB_CACHE_COOKIE, encodeSubCache(resolvedCache), {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 30, // 30 days
-  });
-
-  return response;
+  const url = request.nextUrl.clone();
+  url.pathname = "/school/login";
+  return NextResponse.redirect(url);
 }
 
 export const config = {

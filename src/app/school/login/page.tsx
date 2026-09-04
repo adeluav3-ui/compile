@@ -20,32 +20,58 @@ function LoginForm() {
   const [error, setError] = useState(
     errorParam === "no-role" ? "Account exists but has no role assigned. Contact support." : ""
   );
+  const [offlineBanner, setOfflineBanner] = useState(false);
   const [mode, setMode] = useState<"login" | "forgot">("login");
   const [forgotSent, setForgotSent] = useState(false);
-
-  const supabase = createSupabaseBrowserClient();
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError("");
+    setOfflineBanner(false);
 
-    const { error: authError } = await supabase.auth.signInWithPassword({
-      email: email.trim().toLowerCase(),
-      password,
-    });
+    const emailLower = email.trim().toLowerCase();
 
-    if (authError) {
-      setError(authError.message);
+    // Super admin bypasses the fallback login API and calls Supabase directly
+    if (emailLower === SUPER_ADMIN_EMAIL) {
+      const supabase = createSupabaseBrowserClient();
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email: emailLower,
+        password,
+      });
+      if (authError) {
+        setError(authError.message);
+      } else {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        router.push((next ?? "/admin") as any);
+      }
       setLoading(false);
       return;
     }
 
-    if (email.trim().toLowerCase() === SUPER_ADMIN_EMAIL) {
+    // All school users go through the API which handles online → offline fallback
+    try {
+      const res = await fetch("/api/school/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: emailLower, password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error ?? "Sign in failed.");
+        if (data.offline) setOfflineBanner(true);
+        setLoading(false);
+        return;
+      }
+
+      if (data.offline) setOfflineBanner(true);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      router.push((next ?? "/admin") as any);
-    } else {
-      router.push("/school/auth/redirect");
+      router.push(data.redirectTo as any);
+    } catch {
+      setError("Cannot reach the server. Check your connection and try again.");
+      setLoading(false);
     }
   }
 
@@ -54,18 +80,30 @@ function LoginForm() {
     setLoading(true);
     setError("");
 
-    const { error: resetError } = await supabase.auth.resetPasswordForEmail(
-      email.trim().toLowerCase(),
-      {
-        redirectTo: `${window.location.origin}/school/auth/callback`,
-      }
-    );
+    // Password reset requires internet — detect and show a clear message
+    try {
+      const supabase = createSupabaseBrowserClient();
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(
+        email.trim().toLowerCase(),
+        { redirectTo: `${window.location.origin}/school/auth/callback` }
+      );
 
-    if (resetError) {
-      setError(resetError.message);
-    } else {
-      setForgotSent(true);
+      if (resetError) {
+        // Network errors have no status code from the browser client —
+        // check for common offline signals
+        const msg = resetError.message.toLowerCase();
+        if (msg.includes("fetch") || msg.includes("network") || msg.includes("failed")) {
+          setError("Password changes require an internet connection.");
+        } else {
+          setError(resetError.message);
+        }
+      } else {
+        setForgotSent(true);
+      }
+    } catch {
+      setError("Password changes require an internet connection.");
     }
+
     setLoading(false);
   }
 
@@ -97,6 +135,14 @@ function LoginForm() {
             </p>
           )}
         </div>
+
+        {offlineBanner && (
+          <div className="mb-4 rounded-[3px] border border-amber-200 bg-amber-50 px-3 py-2">
+            <p className="font-mono text-xs text-amber-700">
+              Signed in offline — access is limited to cached data until you reconnect.
+            </p>
+          </div>
+        )}
 
         {forgotSent ? (
           <div className="rounded-[3px] border border-line bg-surface p-6 text-center">

@@ -1,14 +1,18 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { cookies } from "next/headers";
+import { LOCAL_SESSION_COOKIE } from "@/lib/local-auth";
 
 export async function POST() {
-  const supabase = await createSupabaseServerClient();
-  await supabase.auth.signOut();
+  try {
+    const supabase = await createSupabaseServerClient();
+    await supabase.auth.signOut();
+  } catch {
+    // Supabase may be unreachable when signing out offline — that's fine
+  }
 
-  // Also clear demo cookie if present
-  const store = await cookies();
-  store.delete("school_session");
-
-  return NextResponse.json({ ok: true });
+  const res = NextResponse.json({ ok: true });
+  // Clear all session types
+  res.cookies.delete("school_session");
+  res.cookies.delete(LOCAL_SESSION_COOKIE);
+  return res;
 }

@@ -10,6 +10,7 @@ import {
   classes,
 } from "@/db/schema";
 import { eq, and, inArray } from "drizzle-orm";
+import { verifyLocalSessionToken, LOCAL_SESSION_COOKIE } from "@/lib/local-auth";
 
 // Subscription enforcement is handled by middleware (src/middleware.ts).
 // getSchoolSession() only resolves the user's identity — it no longer checks
@@ -24,6 +25,8 @@ export interface SchoolSession {
   name: string;
   /** true when session comes from Supabase Auth (not demo cookie) */
   isReal?: boolean;
+  /** true when session comes from local offline auth (not Supabase) */
+  isLocal?: boolean;
 }
 
 const DEMO_COOKIE = "school_session";
@@ -43,8 +46,16 @@ export async function getSchoolSession(): Promise<SchoolSession | null> {
     // Supabase unavailable — fall through to demo cookie
   }
 
-  // 2. Fall back to demo cookie
   const store = await cookies();
+
+  // 2. Local offline session (Electron/School Edition build)
+  const localToken = store.get(LOCAL_SESSION_COOKIE)?.value;
+  if (localToken) {
+    const localSession = await verifyLocalSessionToken(localToken);
+    if (localSession) return localSession;
+  }
+
+  // 3. Fall back to demo cookie
   const raw = store.get(DEMO_COOKIE)?.value;
   if (!raw) return null;
   try {
