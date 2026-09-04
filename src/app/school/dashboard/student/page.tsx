@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { classes, lessons, lessonReleases, assessments, assessmentResults } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import Link from "next/link";
+import DashboardHeader from "@/components/school/DashboardHeader";
 
 export default async function StudentDashboard() {
   const session = await getSchoolSession();
@@ -53,26 +54,7 @@ export default async function StudentDashboard() {
 
   return (
     <div className="min-h-screen bg-paper">
-      {/* Nav */}
-      <header className="flex items-center justify-between border-b border-line bg-surface px-4 py-3 sm:px-6 sm:py-4">
-        <div className="flex items-center gap-2 sm:gap-3">
-          <span className="font-mono text-xs tracking-widest text-brass uppercase">Compile</span>
-          <span className="hidden text-line sm:inline">|</span>
-          <span className="hidden text-sm text-muted sm:inline">School Edition</span>
-        </div>
-        <div className="flex items-center gap-2 sm:gap-4">
-          <span className="max-w-[100px] truncate text-sm font-semibold text-navy-deep sm:max-w-none">{session.name}</span>
-          <span className="rounded bg-steel/10 px-2 py-0.5 font-mono text-xs text-steel">
-            Student
-          </span>
-          <Link
-            href="/school/login"
-            className="hidden text-xs text-muted transition-colors hover:text-navy sm:block"
-          >
-            Switch account
-          </Link>
-        </div>
-      </header>
+      <DashboardHeader name={session.name} role="student" isReal={session.isReal} />
 
       <main className="mx-auto max-w-3xl px-6 py-8">
         <div className="mb-8">
