@@ -22,7 +22,6 @@ import TeacherLessonPreview from "./TeacherLessonPreview";
 export default async function TeacherDashboard() {
   const session = await getSchoolSession();
   if (!session || session.role !== "teacher") redirect("/school/login");
-  if (session.subscriptionBlocked) redirect("/school/suspended");
 
   const [assignment] = await db
     .select()
