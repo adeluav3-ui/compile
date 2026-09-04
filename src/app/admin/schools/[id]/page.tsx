@@ -15,6 +15,7 @@ import { eq, count, avg } from "drizzle-orm";
 import Link from "next/link";
 import SubscriptionControls from "./SubscriptionControls";
 import AddTeacherForm from "./AddTeacherForm";
+import ClassStatusTable from "./ClassStatusTable";
 
 const STATUS_BADGE: Record<string, string> = {
   active: "bg-emerald-50 text-emerald-700",
@@ -209,25 +210,10 @@ export default async function SchoolDetailPage({
       </section>
 
       {/* Classes */}
-      {schoolClasses.length > 0 && (
-        <section className="rounded-[3px] border border-line bg-surface p-6">
-          <h2 className="mb-4 font-mono text-xs uppercase tracking-widest text-brass">Classes</h2>
-          <div className="space-y-2">
-            {schoolClasses.map((cls) => (
-              <div
-                key={cls.id}
-                className="flex items-center justify-between rounded-[3px] border border-line px-4 py-3"
-              >
-                <div>
-                  <span className="font-semibold text-navy-deep">{cls.name}</span>
-                  <span className="ml-2 font-mono text-xs text-muted">{cls.level}</span>
-                </div>
-                <span className="font-mono text-xs text-muted">{cls.id.slice(0, 8)}…</span>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
+      <section>
+        <h2 className="mb-4 font-mono text-xs uppercase tracking-widest text-brass">Classes</h2>
+        <ClassStatusTable schoolId={id} />
+      </section>
 
       {/* Teachers */}
       <section className="rounded-[3px] border border-line bg-surface p-6">

@@ -13,6 +13,7 @@ import {
 import { and, eq, desc } from "drizzle-orm";
 import Link from "next/link";
 import DashboardHeader from "@/components/school/DashboardHeader";
+import ClassStatusPanel from "@/components/school/ClassStatusPanel";
 import ReleaseToggleButton from "./ReleaseToggleButton";
 import QAReplyForm from "./QAReplyForm";
 import GradeConfirm from "./GradeConfirm";
@@ -110,6 +111,9 @@ export default async function TeacherDashboard() {
             Assessments →
           </Link>
         </div>
+
+        {/* ── Class Status ── */}
+        <ClassStatusPanel teacherProfileId={session.profileId} />
 
         {/* ── Lessons ── */}
         <section>
