@@ -25,7 +25,7 @@ export async function PATCH(
     const { id } = await params;
 
     const { action, days, expiresAt } = (await request.json()) as {
-      action: "activate" | "extend" | "revoke";
+      action: "activate" | "extend" | "revoke" | "forever";
       days?: number;
       expiresAt?: string;
     };
@@ -46,6 +46,14 @@ export async function PATCH(
         .set({ subscriptionStatus: "expired", subscriptionExpiresAt: new Date() })
         .where(eq(schools.id, id));
       return NextResponse.json({ ok: true, status: "expired" });
+    }
+
+    if (action === "forever") {
+      await db
+        .update(schools)
+        .set({ subscriptionStatus: "active", subscriptionExpiresAt: null })
+        .where(eq(schools.id, id));
+      return NextResponse.json({ ok: true, status: "active", expiresAt: null });
     }
 
     if (action === "extend" || action === "activate") {

@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { notFound } from "next/navigation";
 import { db } from "@/db";
 import {
@@ -29,7 +31,8 @@ function fmt(date: Date | null) {
   });
 }
 
-function daysDiff(date: Date | null): { label: string; urgent: boolean } {
+function daysDiff(date: Date | null, status: string): { label: string; urgent: boolean } {
+  if (status === "active" && !date) return { label: "Forever — no expiry", urgent: false };
   if (!date) return { label: "No expiry set", urgent: false };
   const diff = Math.ceil((date.getTime() - Date.now()) / 86400000);
   if (diff < 0) return { label: `Expired ${Math.abs(diff)} days ago`, urgent: true };
@@ -113,7 +116,7 @@ export default async function SchoolDetailPage({
     .innerJoin(classes, eq(submissions.classId, classes.id))
     .where(eq(classes.schoolId, id));
 
-  const expiry = daysDiff(school.subscriptionExpiresAt);
+  const expiry = daysDiff(school.subscriptionExpiresAt, school.subscriptionStatus);
 
   return (
     <div className="space-y-8">

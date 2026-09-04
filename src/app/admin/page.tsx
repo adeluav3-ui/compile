@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { db } from "@/db";
 import { schools, profiles } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
@@ -9,7 +11,8 @@ const STATUS_BADGE: Record<string, string> = {
   expired: "bg-[#FEF2F2] text-[#991B1B]",
 };
 
-function daysDiff(date: Date | null): string {
+function daysDiff(date: Date | null, status: string): string {
+  if (status === "active" && !date) return "Forever";
   if (!date) return "—";
   const diff = Math.ceil((date.getTime() - Date.now()) / 86400000);
   if (diff < 0) return `Expired ${Math.abs(diff)}d ago`;
@@ -112,7 +115,7 @@ export default async function AdminDashboard() {
                     </span>
                   </td>
                   <td className="px-5 py-4 font-mono text-xs text-muted">
-                    {daysDiff(school.subscriptionExpiresAt)}
+                    {daysDiff(school.subscriptionExpiresAt, school.subscriptionStatus)}
                   </td>
                   <td className="px-5 py-4 text-right">
                     <Link
