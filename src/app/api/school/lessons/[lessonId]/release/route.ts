@@ -18,7 +18,7 @@ export async function POST(
   const { classId } = await req.json().catch(() => ({}));
   if (!classId) return NextResponse.json({ error: "classId required." }, { status: 400 });
 
-  // Toggle: if already released, remove; otherwise insert
+  // Toggle
   const [existing] = await db
     .select()
     .from(lessonReleases)
@@ -31,35 +31,33 @@ export async function POST(
     return NextResponse.json({ released: false });
   }
 
-  // Create the release record immediately — this always succeeds even offline
+  // Create the release record immediately — always succeeds, even offline
   await db.insert(lessonReleases).values({
     lessonId,
     classId,
     releasedBy: session.profileId,
   });
 
-  // Determine if this lesson has a local video that needs syncing.
-  // Only School Edition (LOCAL_DB_PATH set) downloads videos locally.
-  // YouTube lessons are streamed online; no local copy needed.
+  // In offline School Edition builds, ensure the video file is synced locally.
+  // ALL lesson types (including YouTube-sourced) go through the same pipeline:
+  // download → encrypt → store. No special cases.
   let videoStatus: string | null = null;
 
   if (process.env.LOCAL_DB_PATH) {
-    const [lesson] = await db.select({ videoProvider: lessons.videoProvider }).from(lessons).where(eq(lessons.id, lessonId));
+    const [lesson] = await db
+      .select({ videoId: lessons.videoId, videoProvider: lessons.videoProvider })
+      .from(lessons)
+      .where(eq(lessons.id, lessonId));
 
-    // YouTube lessons stream directly — no local sync required
-    if (!lesson || lesson.videoProvider === "youtube") {
-      videoStatus = "ready";
-    } else {
-      // For all other lesson types (local video or VdoCipher replacement),
-      // ensure the file is synced to the local media store.
-      videoStatus = await ensureVideoSynced(lessonId);
-    }
+    videoStatus = lesson
+      ? await ensureVideoSynced(lessonId, {
+          videoId: lesson.videoId,
+          videoProvider: lesson.videoProvider,
+        })
+      : "error";
   }
 
-  return NextResponse.json({
-    released: true,
-    videoStatus,
-  });
+  return NextResponse.json({ released: true, videoStatus });
 }
 
 export async function GET(
@@ -72,11 +70,11 @@ export async function GET(
   }
 
   const { lessonId } = await params;
-
   const state = getVideoSyncState(lessonId);
   return NextResponse.json({
     lessonId,
     videoStatus: state?.status ?? null,
+    videoSource: state?.videoSource ?? null,
     localPath: state?.localPath ?? null,
     errorText: state?.errorText ?? null,
   });

@@ -43,14 +43,22 @@ export function getLocalDb(): BetterSqlite3.Database | null {
     );
 
     CREATE TABLE IF NOT EXISTS video_sync (
-      lesson_id  TEXT PRIMARY KEY,
-      status     TEXT NOT NULL DEFAULT 'pending',
-      source_url TEXT,
-      local_path TEXT,
-      error_text TEXT,
-      updated_at INTEGER NOT NULL
+      lesson_id    TEXT PRIMARY KEY,
+      status       TEXT NOT NULL DEFAULT 'pending',
+      video_source TEXT,
+      source_url   TEXT,
+      local_path   TEXT,
+      error_text   TEXT,
+      updated_at   INTEGER NOT NULL
     );
   `);
+
+  // Idempotent migration: add video_source column to existing tables
+  try {
+    db.exec("ALTER TABLE video_sync ADD COLUMN video_source TEXT");
+  } catch {
+    // Column already exists — fine
+  }
 
   global.__localDb = db;
   return db;

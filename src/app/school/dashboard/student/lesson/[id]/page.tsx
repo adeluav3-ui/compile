@@ -119,55 +119,59 @@ export default async function StudentLessonPage({
         <section>
           <h2 className="mb-3 font-mono text-xs uppercase tracking-widest text-brass">Video</h2>
           <div className="overflow-hidden rounded-[3px] border border-line bg-surface" style={{ aspectRatio: "16/9" }}>
-            {/* Offline build: video not yet downloaded */}
-            {videoSync && videoSync.status !== "ready" ? (
-              <div className="flex h-full items-center justify-center">
-                <div className="text-center">
-                  <div className="mb-2 text-4xl text-muted">
-                    {videoSync.status === "downloading" ? "⟳" : "▶"}
+            {/*
+              Offline School Edition build (LOCAL_DB_PATH set):
+              ALL videos — regardless of original source (YouTube or storage) — go
+              through the local sync pipeline. No YouTube embeds reach this view.
+              Playback is always via /api/school/video/[lessonId].
+            */}
+            {videoSync !== null ? (
+              videoSync.status !== "ready" ? (
+                <div className="flex h-full items-center justify-center">
+                  <div className="text-center">
+                    <div className={`mb-2 text-4xl text-muted ${videoSync.status === "downloading" ? "animate-spin" : ""}`}>
+                      {videoSync.status === "downloading" ? "⟳" : "▶"}
+                    </div>
+                    {videoSync.status === "downloading" ? (
+                      <>
+                        <p className="text-sm text-muted">Video is downloading…</p>
+                        <p className="mt-1 font-mono text-xs text-muted">
+                          Refresh this page in a moment to check.
+                        </p>
+                      </>
+                    ) : videoSync.status === "pending" ? (
+                      <>
+                        <p className="text-sm text-muted">Video not yet available.</p>
+                        <p className="mt-1 font-mono text-xs text-muted">
+                          The server is waiting for an internet connection to download it.
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-sm text-muted">Video unavailable.</p>
+                        <p className="mt-1 font-mono text-xs text-muted">
+                          Ask your teacher to check the school server.
+                        </p>
+                      </>
+                    )}
                   </div>
-                  {videoSync.status === "downloading" ? (
-                    <>
-                      <p className="text-sm text-muted">Video is downloading…</p>
-                      <p className="mt-1 font-mono text-xs text-muted">
-                        It will be available shortly. Refresh this page to check.
-                      </p>
-                    </>
-                  ) : videoSync.status === "pending" ? (
-                    <>
-                      <p className="text-sm text-muted">Video not yet available.</p>
-                      <p className="mt-1 font-mono text-xs text-muted">
-                        Waiting for the server to connect to the internet to download it.
-                      </p>
-                    </>
-                  ) : (
-                    <>
-                      <p className="text-sm text-muted">Video unavailable.</p>
-                      <p className="mt-1 font-mono text-xs text-muted">
-                        Ask your teacher to check the school server connection.
-                      </p>
-                    </>
-                  )}
                 </div>
-              </div>
-            ) : lesson.videoId && lesson.videoProvider === "youtube" ? (
-              <iframe
-                src={`https://www.youtube-nocookie.com/embed/${lesson.videoId}?modestbranding=1&rel=0&iv_load_policy=3`}
-                className="h-full w-full"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                title={lesson.title}
-              />
-            ) : videoSync?.status === "ready" || lesson.contentUrl ? (
-              <video className="h-full w-full" controls>
-                <source src={`/api/school/video/${id}`} />
-              </video>
+              ) : (
+                // status === "ready" — decrypt-and-stream through the gated route
+                <video className="h-full w-full" controls>
+                  <source src={`/api/school/video/${id}`} type="video/mp4" />
+                </video>
+              )
             ) : (
+              /*
+                Cloud / development build (LOCAL_DB_PATH not set):
+                Students in this mode are accessing the admin/preview path, not the
+                offline Electron app. Show a placeholder.
+              */
               <div className="flex h-full items-center justify-center">
                 <div className="text-center">
                   <div className="mb-2 text-4xl text-muted">▶</div>
-                  <p className="text-sm text-muted">Video coming soon.</p>
-                  <p className="mt-1 font-mono text-xs text-muted">{lesson.title}</p>
+                  <p className="text-sm text-muted">Video available in the School Edition app.</p>
                 </div>
               </div>
             )}
