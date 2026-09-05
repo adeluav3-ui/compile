@@ -2,29 +2,40 @@
 
 import { useState, useEffect, useRef } from "react";
 
-type VideoStatus = "pending" | "downloading" | "ready" | "error" | null;
+type VideoStatus =
+  | "pending"
+  | "downloading"
+  | "ready"
+  | "degraded_online_only"
+  | "error"
+  | null;
+
+function statusLabel(status: NonNullable<Exclude<VideoStatus, "ready">>): string {
+  if (status === "degraded_online_only" || status === "error") {
+    return "Still processing.";
+  }
+  return "Processing — not yet ready to view";
+}
+
+function statusColor(status: NonNullable<Exclude<VideoStatus, "ready">>): string {
+  if (status === "degraded_online_only" || status === "error") return "text-[#B45309]";
+  return "text-muted";
+}
+
+function isActive(status: VideoStatus): boolean {
+  return status === "downloading";
+}
 
 function VideoStatusBadge({ status }: { status: VideoStatus }) {
   if (!status || status === "ready") return null;
-
-  const styles: Record<NonNullable<Exclude<VideoStatus, "ready">>, string> = {
-    downloading: "text-steel",
-    pending: "text-muted",
-    error: "text-[#991B1B]",
-  };
-
-  const labels: Record<NonNullable<Exclude<VideoStatus, "ready">>, string> = {
-    downloading: "Downloading…",
-    pending: "Waiting for connection",
-    error: "Download failed",
-  };
+  const s = status as NonNullable<Exclude<VideoStatus, "ready">>;
 
   return (
-    <span className={`ml-2 font-mono text-xs ${styles[status]}`}>
-      {status === "downloading" && (
+    <span className={`ml-2 font-mono text-xs ${statusColor(s)}`}>
+      {isActive(status) && (
         <span className="mr-1 inline-block h-2 w-2 animate-spin rounded-full border border-current border-t-transparent" />
       )}
-      {labels[status]}
+      {statusLabel(s)}
     </span>
   );
 }
@@ -43,11 +54,15 @@ export default function ReleaseToggleButton({
   const [released, setReleased] = useState(initialReleased);
   const [loading, setLoading] = useState(false);
   const [videoStatus, setVideoStatus] = useState<VideoStatus>(initialVideoStatus);
+  const [showOnlinePlayer, setShowOnlinePlayer] = useState(false);
   const pollRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Poll sync status while a download is in-flight
+  const shouldPoll =
+    released && videoStatus !== null && videoStatus !== "ready";
+
+  // Poll sync status while any non-ready state is active
   useEffect(() => {
-    if (videoStatus !== "downloading") {
+    if (!shouldPoll) {
       if (pollRef.current) {
         clearInterval(pollRef.current);
         pollRef.current = null;
@@ -61,21 +76,22 @@ export default function ReleaseToggleButton({
         if (!res.ok) return;
         const data = await res.json();
         const s = data.statuses?.[lessonId]?.status as VideoStatus | undefined;
-        if (s && s !== "downloading") {
+        if (s && s !== videoStatus) {
           setVideoStatus(s);
         }
       } catch {
-        // Non-fatal
+        // Non-fatal — keep polling
       }
     }, 5000);
 
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
     };
-  }, [videoStatus, lessonId]);
+  }, [shouldPoll, videoStatus, lessonId]);
 
   async function toggle() {
     setLoading(true);
+    setShowOnlinePlayer(false);
     try {
       const res = await fetch(`/api/school/lessons/${lessonId}/release`, {
         method: "POST",
@@ -86,35 +102,66 @@ export default function ReleaseToggleButton({
       setReleased(data.released);
       if (data.released && data.videoStatus) {
         setVideoStatus(data.videoStatus as VideoStatus);
+      } else if (!data.released) {
+        setVideoStatus(null);
       }
     } finally {
       setLoading(false);
     }
   }
 
+  const showViewOnline =
+    released && videoStatus !== null && videoStatus !== "ready";
+
   return (
-    <div className="flex items-center">
-      <button
-        onClick={toggle}
-        disabled={loading}
-        className={`flex items-center gap-2 rounded-[3px] px-3 py-1.5 font-mono text-xs transition-colors disabled:opacity-50 ${
-          released
-            ? "bg-navy-deep text-surface hover:bg-navy"
-            : "border border-line text-muted hover:border-navy hover:text-navy"
-        }`}
-      >
-        {loading ? (
-          <span className="inline-block h-3 w-3 animate-spin rounded-full border border-current border-t-transparent" />
-        ) : (
-          <span
-            className={`inline-block h-2 w-2 rounded-full ${
-              released ? "bg-surface" : "bg-line"
-            }`}
-          />
+    <div className="space-y-2">
+      <div className="flex items-center">
+        <button
+          onClick={toggle}
+          disabled={loading}
+          className={`flex items-center gap-2 rounded-[3px] px-3 py-1.5 font-mono text-xs transition-colors disabled:opacity-50 ${
+            released
+              ? "bg-navy-deep text-surface hover:bg-navy"
+              : "border border-line text-muted hover:border-navy hover:text-navy"
+          }`}
+        >
+          {loading ? (
+            <span className="inline-block h-3 w-3 animate-spin rounded-full border border-current border-t-transparent" />
+          ) : (
+            <span
+              className={`inline-block h-2 w-2 rounded-full ${
+                released ? "bg-surface" : "bg-line"
+              }`}
+            />
+          )}
+          {released ? "Released" : "Locked"}
+        </button>
+
+        {released && <VideoStatusBadge status={videoStatus} />}
+
+        {showViewOnline && (
+          <button
+            onClick={() => setShowOnlinePlayer((prev) => !prev)}
+            className="ml-3 font-mono text-xs text-steel underline-offset-2 hover:underline"
+          >
+            {showOnlinePlayer ? "Hide player" : "View Online"}
+          </button>
         )}
-        {released ? "Released" : "Locked"}
-      </button>
-      {released && <VideoStatusBadge status={videoStatus} />}
+      </div>
+
+      {showOnlinePlayer && (
+        <div className="overflow-hidden rounded-[3px] border border-line bg-surface">
+          <video
+            className="w-full"
+            controls
+            autoPlay={false}
+            src={`/api/school/video/${lessonId}?mode=online`}
+          />
+          <p className="px-3 py-1.5 font-mono text-xs text-muted">
+            Streaming live from source — local copy still processing in the background.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

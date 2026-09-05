@@ -10,9 +10,10 @@
  * video_source = "youtube" → yt-dlp extracts the master stream.
  * video_source = "storage" → fetched directly from SCHOOL_VIDEO_BASE_URL.
  *
- * Migration path: flip video_source from "youtube" → "storage" and update
- * source_url. Everything downstream (encryption, storage, gating, playback)
- * is unchanged — the divergence ends at the fetch step.
+ * Retry policy: up to 3 attempts (30s, 2min backoffs). After 3 failures the
+ * row becomes "degraded_online_only" and a 15-min background timer keeps
+ * retrying silently. "error" is kept in the type for backward compat with
+ * existing DB rows but is never written by new code.
  *
  * No-op in cloud builds (LOCAL_DB_PATH not set).
  */
@@ -25,14 +26,23 @@ import os from "os";
 import { spawn } from "child_process";
 
 export type VideoSource = "youtube" | "storage";
-export type VideoSyncStatus = "pending" | "downloading" | "ready" | "error";
+// "error" kept for backward compat with DB rows written by previous code.
+// New failures write "degraded_online_only" after retries are exhausted.
+export type VideoSyncStatus =
+  | "pending"
+  | "downloading"
+  | "ready"
+  | "degraded_online_only"
+  | "error";
 
 export interface VideoSyncState {
   lessonId: string;
   status: VideoSyncStatus;
   videoSource: VideoSource | null;
+  sourceUrl: string | null;
   localPath: string | null;
   errorText: string | null;
+  attemptCount: number;
   updatedAt: number;
 }
 
@@ -46,14 +56,16 @@ export function getVideoSyncState(lessonId: string): VideoSyncState | null {
 
   const row = db
     .prepare(
-      "SELECT lesson_id, status, video_source, local_path, error_text, updated_at FROM video_sync WHERE lesson_id = ?"
+      "SELECT lesson_id, status, video_source, source_url, local_path, error_text, attempt_count, updated_at FROM video_sync WHERE lesson_id = ?"
     )
     .get(lessonId) as {
     lesson_id: string;
     status: string;
     video_source: string | null;
+    source_url: string | null;
     local_path: string | null;
     error_text: string | null;
+    attempt_count: number;
     updated_at: number;
   } | undefined;
 
@@ -63,8 +75,10 @@ export function getVideoSyncState(lessonId: string): VideoSyncState | null {
     lessonId: row.lesson_id,
     status: row.status as VideoSyncStatus,
     videoSource: row.video_source as VideoSource | null,
+    sourceUrl: row.source_url,
     localPath: row.local_path,
     errorText: row.error_text,
+    attemptCount: row.attempt_count ?? 0,
     updatedAt: row.updated_at,
   };
 }
@@ -76,14 +90,16 @@ export function getVideoSyncStates(lessonIds: string[]): Record<string, VideoSyn
   const placeholders = lessonIds.map(() => "?").join(",");
   const rows = db
     .prepare(
-      `SELECT lesson_id, status, video_source, local_path, error_text, updated_at FROM video_sync WHERE lesson_id IN (${placeholders})`
+      `SELECT lesson_id, status, video_source, source_url, local_path, error_text, attempt_count, updated_at FROM video_sync WHERE lesson_id IN (${placeholders})`
     )
     .all(...lessonIds) as {
     lesson_id: string;
     status: string;
     video_source: string | null;
+    source_url: string | null;
     local_path: string | null;
     error_text: string | null;
+    attempt_count: number;
     updated_at: number;
   }[];
 
@@ -94,8 +110,10 @@ export function getVideoSyncStates(lessonIds: string[]): Record<string, VideoSyn
         lessonId: r.lesson_id,
         status: r.status as VideoSyncStatus,
         videoSource: r.video_source as VideoSource | null,
+        sourceUrl: r.source_url,
         localPath: r.local_path,
         errorText: r.error_text,
+        attemptCount: r.attempt_count ?? 0,
         updatedAt: r.updated_at,
       },
     ])
@@ -111,21 +129,22 @@ function upsertSyncState(
   videoSource: VideoSource | null,
   sourceUrl: string | null,
   status: VideoSyncStatus,
-  extra: { localPath?: string; errorText?: string | null } = {}
+  extra: { localPath?: string; errorText?: string | null; attemptCount?: number } = {}
 ): void {
   const db = getLocalDb();
   if (!db) return;
 
   db.prepare(`
-    INSERT INTO video_sync (lesson_id, video_source, source_url, status, local_path, error_text, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO video_sync (lesson_id, video_source, source_url, status, local_path, error_text, attempt_count, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(lesson_id) DO UPDATE SET
-      video_source = COALESCE(excluded.video_source, video_source),
-      source_url   = COALESCE(excluded.source_url, source_url),
-      status       = excluded.status,
-      local_path   = COALESCE(excluded.local_path, local_path),
-      error_text   = excluded.error_text,
-      updated_at   = excluded.updated_at
+      video_source  = COALESCE(excluded.video_source, video_source),
+      source_url    = COALESCE(excluded.source_url, source_url),
+      status        = excluded.status,
+      local_path    = COALESCE(excluded.local_path, local_path),
+      error_text    = excluded.error_text,
+      attempt_count = CASE WHEN excluded.attempt_count IS NOT NULL THEN excluded.attempt_count ELSE attempt_count END,
+      updated_at    = excluded.updated_at
   `).run(
     lessonId,
     videoSource,
@@ -133,6 +152,7 @@ function upsertSyncState(
     status,
     extra.localPath ?? null,
     extra.errorText ?? null,
+    extra.attemptCount ?? null,
     Date.now()
   );
 }
@@ -170,7 +190,7 @@ export function deriveSourceInfo(
 // Connectivity
 // ---------------------------------------------------------------------------
 
-async function isOnline(): Promise<boolean> {
+export async function isOnline(): Promise<boolean> {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.NEXT_SUPABASE_URL;
   if (!supabaseUrl) return false;
   try {
@@ -254,7 +274,68 @@ async function fetchFromYouTube(youtubeUrl: string): Promise<Buffer> {
 }
 
 // ---------------------------------------------------------------------------
-// Background download — both paths converge here after fetching raw bytes
+// Online streaming URL — for the ?mode=online proxy path.
+// Storage: the source URL is directly streamable.
+// YouTube: resolve a signed CDN URL via yt-dlp --get-url (cached 4 hours).
+// ---------------------------------------------------------------------------
+
+const youtubeCdnCache = new Map<string, { url: string; expiresAt: number }>();
+
+export async function getStreamableUrl(syncState: VideoSyncState): Promise<string | null> {
+  const { lessonId, videoSource, sourceUrl } = syncState;
+  if (!videoSource || !sourceUrl) return null;
+
+  if (videoSource === "storage") {
+    return sourceUrl;
+  }
+
+  // Check cache first
+  const cached = youtubeCdnCache.get(lessonId);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.url;
+  }
+
+  // Resolve a single-file progressive URL (format 18 = 360p MP4, always
+  // available as one stream — avoids DASH multi-URL complexity in the proxy).
+  return new Promise<string>((resolve, reject) => {
+    const proc = spawn("yt-dlp", [
+      "--no-playlist",
+      "-f", "18/best[ext=mp4]/b[ext=mp4]",
+      "--get-url",
+      sourceUrl,
+    ]);
+
+    let stdout = "";
+    let stderr = "";
+    proc.stdout?.on("data", (d: Buffer) => { stdout += d.toString(); });
+    proc.stderr?.on("data", (d: Buffer) => { stderr += d.toString(); });
+
+    proc.on("error", (err) => {
+      if ((err as NodeJS.ErrnoException).code === "ENOENT") {
+        reject(new Error("yt-dlp not found. Install it: https://github.com/yt-dlp/yt-dlp#installation"));
+      } else {
+        reject(err);
+      }
+    });
+
+    proc.on("close", (code) => {
+      if (code !== 0) {
+        reject(new Error(`yt-dlp --get-url failed: ${stderr.slice(-300)}`));
+        return;
+      }
+      const url = stdout.trim().split("\n")[0];
+      if (!url) {
+        reject(new Error("yt-dlp returned no URL"));
+        return;
+      }
+      youtubeCdnCache.set(lessonId, { url, expiresAt: Date.now() + 4 * 60 * 60 * 1000 });
+      resolve(url);
+    });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Background download with retry
 // ---------------------------------------------------------------------------
 
 const activeDownloads = new Set<string>();
@@ -267,7 +348,7 @@ export async function scheduleDownload(
 
   const mediaDir = process.env.MEDIA_DIR;
   if (!mediaDir) {
-    upsertSyncState(lessonId, sourceInfo.source, sourceInfo.url, "error", {
+    upsertSyncState(lessonId, sourceInfo.source, sourceInfo.url, "degraded_online_only", {
       errorText: "MEDIA_DIR not configured.",
     });
     return;
@@ -275,14 +356,18 @@ export async function scheduleDownload(
 
   const videoKey = getVideoKey();
   if (!videoKey) {
-    upsertSyncState(lessonId, sourceInfo.source, sourceInfo.url, "error", {
+    upsertSyncState(lessonId, sourceInfo.source, sourceInfo.url, "degraded_online_only", {
       errorText: "Video encryption key not configured. Complete license setup first.",
     });
     return;
   }
 
+  // Claim slot before the setImmediate fires to prevent race conditions on
+  // concurrent calls (e.g. two classes releasing the same lesson at once).
+  activeDownloads.add(lessonId);
+
   setImmediate(() => {
-    void runDownload(lessonId, sourceInfo, mediaDir, videoKey);
+    void runDownload(lessonId, sourceInfo, mediaDir, videoKey, 1);
   });
 }
 
@@ -290,32 +375,50 @@ async function runDownload(
   lessonId: string,
   sourceInfo: SourceInfo,
   mediaDir: string,
-  videoKey: string
+  videoKey: string,
+  attempt: number
 ): Promise<void> {
-  activeDownloads.add(lessonId);
-  upsertSyncState(lessonId, sourceInfo.source, sourceInfo.url, "downloading");
+  // activeDownloads already contains lessonId (added by scheduleDownload or
+  // kept between retry attempts — intentionally not removed during backoffs).
+  upsertSyncState(lessonId, sourceInfo.source, sourceInfo.url, "downloading", {
+    attemptCount: attempt,
+  });
 
   try {
     await mkdir(mediaDir, { recursive: true });
 
-    // ── Fetch raw bytes — only divergence between source types ──────────────
     const rawBytes =
       sourceInfo.source === "youtube"
         ? await fetchFromYouTube(sourceInfo.url)
         : await fetchFromStorage(sourceInfo.url);
 
-    // ── Everything below is identical regardless of source ──────────────────
     const encrypted = encryptVideo(rawBytes, videoKey);
     const localPath = path.join(mediaDir, `${lessonId}.enc`);
     await writeFile(localPath, encrypted);
 
     upsertSyncState(lessonId, sourceInfo.source, sourceInfo.url, "ready", { localPath });
-  } catch (err) {
-    upsertSyncState(lessonId, sourceInfo.source, sourceInfo.url, "error", {
-      errorText: String(err),
-    });
-  } finally {
     activeDownloads.delete(lessonId);
+  } catch (err) {
+    const nextAttempt = attempt + 1;
+
+    if (nextAttempt <= 3) {
+      // Keep lessonId in activeDownloads during the backoff — prevents any
+      // concurrent ensureVideoSynced call from scheduling a duplicate download.
+      const delay = attempt === 1 ? 30_000 : 120_000; // 30s, then 2min
+      setTimeout(() => {
+        void runDownload(lessonId, sourceInfo, mediaDir, videoKey, nextAttempt);
+      }, delay);
+    } else {
+      // All 3 attempts exhausted — degrade gracefully.
+      activeDownloads.delete(lessonId);
+      upsertSyncState(lessonId, sourceInfo.source, sourceInfo.url, "degraded_online_only", {
+        errorText: String(err),
+      });
+      // Silent 15-min background retry cycle — keeps trying without teacher action.
+      setTimeout(() => {
+        void scheduleDownload(lessonId, sourceInfo);
+      }, 15 * 60 * 1000);
+    }
   }
 }
 
@@ -349,20 +452,25 @@ export async function ensureVideoSynced(
   // Already ready — verify file still on disk
   if (state?.status === "ready" && state.localPath) {
     if (await fileExists(state.localPath)) return "ready";
-    // File deleted — re-download
+    // File deleted — fall through to re-download
   }
 
-  // Already in-flight
+  // In-flight (downloading or mid-backoff retry)
   if (state?.status === "downloading" || activeDownloads.has(lessonId)) {
     return "downloading";
   }
 
+  // Degraded — 15-min background timer is already running; don't double-schedule
+  if (state?.status === "degraded_online_only") {
+    return "degraded_online_only";
+  }
+
   if (!sourceInfo) {
-    upsertSyncState(lessonId, null, null, "error", {
+    upsertSyncState(lessonId, null, null, "degraded_online_only", {
       errorText:
         "No video source configured. Set SCHOOL_VIDEO_BASE_URL or ensure the lesson has a videoId.",
     });
-    return "error";
+    return "degraded_online_only";
   }
 
   const online = await isOnline();
@@ -388,9 +496,11 @@ export async function resumePendingDownloads(): Promise<{
 
   if (!(await isOnline())) return { started: [], skipped: 0 };
 
+  // Include "error" (legacy rows from old code) and "degraded_online_only"
+  // alongside "pending" so they all get a fresh attempt on reconnect.
   const rows = db
     .prepare(
-      "SELECT lesson_id, video_source, source_url FROM video_sync WHERE status IN ('pending', 'error') AND source_url IS NOT NULL"
+      "SELECT lesson_id, video_source, source_url FROM video_sync WHERE status IN ('pending', 'error', 'degraded_online_only') AND source_url IS NOT NULL"
     )
     .all() as { lesson_id: string; video_source: string; source_url: string }[];
 

@@ -43,22 +43,29 @@ export function getLocalDb(): BetterSqlite3.Database | null {
     );
 
     CREATE TABLE IF NOT EXISTS video_sync (
-      lesson_id    TEXT PRIMARY KEY,
-      status       TEXT NOT NULL DEFAULT 'pending',
-      video_source TEXT,
-      source_url   TEXT,
-      local_path   TEXT,
-      error_text   TEXT,
-      updated_at   INTEGER NOT NULL
+      lesson_id     TEXT PRIMARY KEY,
+      status        TEXT NOT NULL DEFAULT 'pending',
+      video_source  TEXT,
+      source_url    TEXT,
+      local_path    TEXT,
+      error_text    TEXT,
+      attempt_count INTEGER NOT NULL DEFAULT 0,
+      updated_at    INTEGER NOT NULL
     );
   `);
 
-  // Idempotent migration: add video_source column to existing tables
-  try {
-    db.exec("ALTER TABLE video_sync ADD COLUMN video_source TEXT");
-  } catch {
-    // Column already exists — fine
+  // Idempotent column migrations
+  for (const stmt of [
+    "ALTER TABLE video_sync ADD COLUMN video_source TEXT",
+    "ALTER TABLE video_sync ADD COLUMN attempt_count INTEGER NOT NULL DEFAULT 0",
+  ]) {
+    try { db.exec(stmt); } catch { /* column already exists */ }
   }
+
+  // Startup recovery: any row stuck in "downloading" from a previous server run
+  // has no active download thread — reset so it will be picked up by the next
+  // ensureVideoSynced() or resumePendingDownloads() call.
+  db.exec("UPDATE video_sync SET status = 'pending' WHERE status = 'downloading'");
 
   global.__localDb = db;
   return db;

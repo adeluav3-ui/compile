@@ -1,16 +1,25 @@
 /**
  * GET /api/school/video/[lessonId]
+ * GET /api/school/video/[lessonId]?mode=online
  *
- * Gated decrypt-and-stream endpoint for School Edition local videos.
- * Identical gate for ALL lessons regardless of original source (YouTube or
- * Supabase Storage) — source type is irrelevant by the time we get here.
+ * Gated video endpoint for School Edition local videos.
  *
- * Gate order (matches the spec):
+ * Default mode (no query param):
+ *   Decrypt-and-stream from the locally encrypted file. Requires the file to
+ *   be in "ready" state. Range-aware so the video element can seek.
+ *
+ * Online mode (?mode=online):
+ *   Live-proxy from the original source (YouTube CDN or storage URL) without
+ *   writing anything to disk. Used while a download is still processing or
+ *   has degraded. Requires the host machine to have internet access.
+ *   The raw source URL is NEVER returned to the browser — all traffic flows
+ *   through this route.
+ *
+ * Gate order (identical for both modes):
  *   1. Local session check   — valid school session required
  *   2. Subscription check    — handled by middleware before this route is hit
  *   3. lesson_releases check — lesson must be released to the student's class
- *   4. Decrypt in memory     — encrypted file read, decrypted, never written to disk
- *   5. Stream                — range-aware response so the video element can seek
+ *   4. Mode-specific logic   — decrypt+stream OR connectivity check + proxy
  *
  * Teachers and admins bypass the lesson_releases check so they can preview
  * any lesson on their class's level.
@@ -21,7 +30,7 @@ import { getSchoolSession } from "@/lib/school-session";
 import { db } from "@/db";
 import { lessonReleases } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
-import { getVideoSyncState } from "@/lib/video-sync";
+import { getVideoSyncState, isOnline, getStreamableUrl } from "@/lib/video-sync";
 import { decryptVideo } from "@/lib/video-crypto";
 import { getLocalDb } from "@/db/local";
 import { readFile } from "fs/promises";
@@ -62,12 +71,66 @@ export async function GET(
     }
   }
 
+  const mode = req.nextUrl.searchParams.get("mode");
+
+  // ── Online proxy mode ──────────────────────────────────────────────────────
+  if (mode === "online") {
+    const syncState = getVideoSyncState(lessonId);
+    if (!syncState?.sourceUrl) {
+      return new NextResponse("Video source not available.", { status: 404 });
+    }
+
+    if (!(await isOnline())) {
+      return new NextResponse("No internet connection available right now.", {
+        status: 503,
+      });
+    }
+
+    let streamUrl: string;
+    try {
+      const resolved = await getStreamableUrl(syncState);
+      if (!resolved) {
+        return new NextResponse("Video source not configured.", { status: 404 });
+      }
+      streamUrl = resolved;
+    } catch {
+      return new NextResponse("Unable to resolve video stream.", { status: 502 });
+    }
+
+    const proxyHeaders: Record<string, string> = {};
+    const rangeHeader = req.headers.get("range");
+    if (rangeHeader) proxyHeaders["Range"] = rangeHeader;
+
+    let upstream: Response;
+    try {
+      upstream = await fetch(streamUrl, { headers: proxyHeaders });
+    } catch {
+      return new NextResponse("Failed to fetch video from source.", { status: 502 });
+    }
+
+    const responseHeaders: Record<string, string> = {
+      "Content-Type": upstream.headers.get("Content-Type") ?? "video/mp4",
+      "Cache-Control": "no-store, no-cache",
+    };
+    for (const h of ["Content-Range", "Content-Length", "Accept-Ranges"]) {
+      const v = upstream.headers.get(h);
+      if (v) responseHeaders[h] = v;
+    }
+
+    return new NextResponse(upstream.body, {
+      status: upstream.status,
+      headers: responseHeaders,
+    });
+  }
+
+  // ── Local decrypt-and-stream mode (default) ────────────────────────────────
+
   // ── 4. Video availability check ────────────────────────────────────────────
   const syncState = getVideoSyncState(lessonId);
   if (!syncState || syncState.status !== "ready" || !syncState.localPath) {
     return new NextResponse(
       syncState?.status === "downloading"
-        ? "Video is still downloading."
+        ? "Video is still processing."
         : syncState?.status === "pending"
           ? "Video is pending download."
           : "Video not available.",
