@@ -204,6 +204,8 @@ export default async function TeacherDashboard({
                           (videoSyncStates[lesson.id]?.status ?? null) as
                             | "pending" | "downloading" | "ready" | "error" | null
                         }
+                        initialProgressPct={videoSyncStates[lesson.id]?.progressPct ?? 0}
+                        isOfflineBuild={!!process.env.LOCAL_DB_PATH}
                       />
                     </div>
                   </div>

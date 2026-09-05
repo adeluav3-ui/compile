@@ -10,37 +10,30 @@ type VideoStatus =
   | "error"
   | null;
 
-function statusLabel(status: NonNullable<Exclude<VideoStatus, "ready">>): string {
-  if (status === "degraded_online_only" || status === "error") return "Still processing.";
-  if (status === "pending") return "Waiting for internet…";
-  return "Downloading…";
-}
-
-function statusColor(status: NonNullable<Exclude<VideoStatus, "ready">>): string {
-  if (status === "degraded_online_only" || status === "error") return "text-[#B45309]";
-  return "text-muted";
-}
-
 export default function ReleaseToggleButton({
   lessonId,
   classId,
   initialReleased,
   initialVideoStatus = null,
+  initialProgressPct = 0,
+  isOfflineBuild = false,
 }: {
   lessonId: string;
   classId: string;
   initialReleased: boolean;
   initialVideoStatus?: VideoStatus;
+  initialProgressPct?: number;
+  isOfflineBuild?: boolean;
 }) {
   const [released, setReleased] = useState(initialReleased);
   const [loading, setLoading] = useState(false);
   const [videoStatus, setVideoStatus] = useState<VideoStatus>(initialVideoStatus);
-  const [progressPct, setProgressPct] = useState(0);
+  const [progressPct, setProgressPct] = useState(initialProgressPct);
   const [showOnlinePlayer, setShowOnlinePlayer] = useState(false);
   const pollRef = useRef<NodeJS.Timeout | null>(null);
 
   const isDownloading = videoStatus === "downloading";
-  const shouldPoll = released && videoStatus !== null && videoStatus !== "ready";
+  const shouldPoll = released && isOfflineBuild && videoStatus !== null && videoStatus !== "ready";
 
   useEffect(() => {
     if (!shouldPoll) {
@@ -48,7 +41,6 @@ export default function ReleaseToggleButton({
       return;
     }
 
-    // Poll every 2s while downloading for smooth progress; every 5s otherwise
     const interval = isDownloading ? 2000 : 5000;
 
     pollRef.current = setInterval(async () => {
@@ -59,12 +51,10 @@ export default function ReleaseToggleButton({
         const entry = data.statuses?.[lessonId];
         if (!entry) return;
         const s = entry.status as VideoStatus;
-        const pct = entry.progressPct as number ?? 0;
+        const pct = (entry.progressPct as number) ?? 0;
         if (s && s !== videoStatus) setVideoStatus(s);
         setProgressPct(pct);
-      } catch {
-        // Non-fatal — keep polling
-      }
+      } catch { /* non-fatal */ }
     }, interval);
 
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
@@ -82,10 +72,10 @@ export default function ReleaseToggleButton({
       });
       const data = await res.json();
       setReleased(data.released);
-      if (data.released && data.videoStatus) {
-        setVideoStatus(data.videoStatus as VideoStatus);
+      if (data.released) {
+        setVideoStatus((data.videoStatus as VideoStatus) ?? null);
         setProgressPct(0);
-      } else if (!data.released) {
+      } else {
         setVideoStatus(null);
         setProgressPct(0);
       }
@@ -94,15 +84,83 @@ export default function ReleaseToggleButton({
     }
   }
 
-  const showViewOnline =
-    released && videoStatus !== null && videoStatus !== "ready";
+  // ── Status row content ──────────────────────────────────────────────────────
+  function renderStatusRow() {
+    if (!released) return null;
 
-  const notReady = released && videoStatus !== null && videoStatus !== "ready";
+    // Cloud build — no local downloads
+    if (!isOfflineBuild) {
+      return (
+        <p className="font-mono text-xs text-muted">
+          Streaming online · offline copy syncs in School Edition
+        </p>
+      );
+    }
+
+    // Offline build states
+    if (videoStatus === "ready") {
+      return (
+        <p className="font-mono text-xs text-navy-deep">
+          ✓ Saved for offline viewing
+        </p>
+      );
+    }
+
+    if (videoStatus === "pending") {
+      return (
+        <p className="font-mono text-xs text-muted">
+          Queued — will download when internet is available
+        </p>
+      );
+    }
+
+    if (videoStatus === "degraded_online_only" || videoStatus === "error") {
+      return (
+        <p className="font-mono text-xs text-[#B45309]">
+          Download failed after retries · streaming online for now
+        </p>
+      );
+    }
+
+    if (videoStatus === "downloading") {
+      return (
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <p className="font-mono text-xs text-muted">
+              Downloading for offline…
+            </p>
+            {progressPct > 0 && (
+              <span className="font-mono text-xs font-semibold text-navy-deep">
+                {progressPct}%
+              </span>
+            )}
+          </div>
+          {/* Progress bar */}
+          <div className="h-2 w-full overflow-hidden rounded-full bg-line">
+            <div
+              className="h-full rounded-full bg-navy transition-all duration-500 ease-out"
+              style={{ width: `${progressPct > 0 ? progressPct : 6}%` }}
+            />
+          </div>
+        </div>
+      );
+    }
+
+    // null state on offline build — status unknown (e.g. just installed)
+    return (
+      <p className="font-mono text-xs text-muted">
+        Video status unknown — try refreshing
+      </p>
+    );
+  }
+
+  const showViewOnline =
+    released && isOfflineBuild && videoStatus !== null && videoStatus !== "ready";
 
   return (
     <div className="space-y-2">
-      {/* ── Top row: toggle + status label ── */}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+      {/* ── Toggle + View Online ── */}
+      <div className="flex flex-wrap items-center gap-3">
         <button
           onClick={toggle}
           disabled={loading}
@@ -115,28 +173,18 @@ export default function ReleaseToggleButton({
           {loading ? (
             <span className="inline-block h-3 w-3 animate-spin rounded-full border border-current border-t-transparent" />
           ) : (
-            <span
-              className={`inline-block h-2 w-2 rounded-full ${released ? "bg-surface" : "bg-line"}`}
-            />
+            <span className={`inline-block h-2 w-2 rounded-full ${released ? "bg-surface" : "bg-line"}`} />
           )}
           {released ? "Released" : "Locked"}
         </button>
 
-        {notReady && videoStatus && (
-          <span className={`flex items-center gap-1.5 font-mono text-xs ${statusColor(videoStatus as NonNullable<Exclude<VideoStatus, "ready">>)}`}>
-            {isDownloading && (
-              <span className="inline-block h-2 w-2 animate-spin rounded-full border border-current border-t-transparent" />
-            )}
-            {statusLabel(videoStatus as NonNullable<Exclude<VideoStatus, "ready">>)}
-            {isDownloading && progressPct > 0 && (
-              <span className="font-semibold text-navy-deep">{progressPct}%</span>
-            )}
-          </span>
+        {isDownloading && (
+          <span className="inline-block h-3 w-3 animate-spin rounded-full border border-navy border-t-transparent" />
         )}
 
         {showViewOnline && (
           <button
-            onClick={() => setShowOnlinePlayer((prev) => !prev)}
+            onClick={() => setShowOnlinePlayer((p) => !p)}
             className="font-mono text-xs text-steel underline-offset-2 hover:underline"
           >
             {showOnlinePlayer ? "Hide player" : "View Online"}
@@ -144,15 +192,8 @@ export default function ReleaseToggleButton({
         )}
       </div>
 
-      {/* ── Progress bar (download only) ── */}
-      {isDownloading && (
-        <div className="h-1.5 w-full overflow-hidden rounded-full bg-line">
-          <div
-            className="h-full rounded-full bg-navy transition-all duration-500"
-            style={{ width: progressPct > 0 ? `${progressPct}%` : "8%" }}
-          />
-        </div>
-      )}
+      {/* ── Status / progress row (always visible when released) ── */}
+      {renderStatusRow()}
 
       {/* ── View Online inline player ── */}
       {showOnlinePlayer && (
@@ -164,7 +205,7 @@ export default function ReleaseToggleButton({
             src={`/api/school/video/${lessonId}?mode=online`}
           />
           <p className="px-3 py-1.5 font-mono text-xs text-muted">
-            Streaming live from source — local copy still downloading in the background.
+            Streaming live — local copy still downloading in the background.
           </p>
         </div>
       )}
