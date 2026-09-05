@@ -3,7 +3,7 @@ import { getSchoolSession } from "@/lib/school-session";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { db } from "@/db";
 import { profiles, userRoles, teacherAssignments, classes } from "@/db/schema";
-import { eq, inArray } from "drizzle-orm";
+import { inArray } from "drizzle-orm";
 import { cacheLocalCredential } from "@/lib/local-auth";
 import { randomBytes } from "crypto";
 

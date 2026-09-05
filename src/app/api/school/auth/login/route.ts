@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
 
   // Resolve email from username when needed (Supabase Auth requires email)
   let resolvedEmail = isEmail ? normalized : null;
-  let resolvedUsername: string | undefined = isEmail ? undefined : normalized;
+  const resolvedUsername: string | undefined = isEmail ? undefined : normalized;
 
   if (!isEmail) {
     try {

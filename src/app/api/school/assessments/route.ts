@@ -4,7 +4,7 @@ import { db } from "@/db";
 import {
   assessments, assessmentQuestions, lessons, lessonReleases,
 } from "@/db/schema";
-import { and, eq, gte, lte, inArray, asc } from "drizzle-orm";
+import { and, eq, gte, lte, asc } from "drizzle-orm";
 import { generateAssessmentQuestions } from "@/lib/ai";
 
 // GET — list assessments for the teacher's class
