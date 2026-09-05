@@ -207,11 +207,14 @@ export default async function TeacherDashboard({
                       />
                     </div>
                   </div>
-                  {releasedIds.has(lesson.id) && videoSyncStates[lesson.id]?.status === "ready" && (
+                  {releasedIds.has(lesson.id) && (
                     <PlayForClassPlayer
                       lessonId={lesson.id}
                       classId={activeClassId}
                       classSection={cls?.name ?? "Demo Class"}
+                      isLocalReady={videoSyncStates[lesson.id]?.status === "ready"}
+                      videoProvider={lesson.videoProvider}
+                      videoId={lesson.videoId}
                     />
                   )}
                   <TeacherLessonPreview

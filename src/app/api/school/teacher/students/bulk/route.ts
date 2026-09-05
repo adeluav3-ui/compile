@@ -9,11 +9,31 @@ import { randomBytes } from "crypto";
 
 interface ImportRow {
   name: string;
-  identifier: string; // email or username
-  password?: string;
 }
 
-// POST /api/school/teacher/students/bulk — teacher bulk-creates student accounts
+function slugifyName(name: string): string {
+  const slug = name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "") // strip diacritics
+    .replace(/[^a-z0-9\s]/g, "")    // keep only letters, digits, spaces
+    .trim()
+    .replace(/\s+/g, "_");
+  return slug || "student";
+}
+
+async function createAuthUser(email: string, password: string, fullName: string) {
+  return supabaseAdmin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: { full_name: fullName },
+  });
+}
+
+// POST /api/school/teacher/students/bulk
+// Body: { classId, rows: [{ name }] }
+// Usernames and passwords are fully auto-generated — teacher only supplies names.
 export async function POST(req: NextRequest) {
   const session = await getSchoolSession();
   if (!session || session.role !== "teacher") {
@@ -25,7 +45,7 @@ export async function POST(req: NextRequest) {
   const rows: ImportRow[] = Array.isArray(body?.rows) ? body.rows : [];
 
   if (!classId || rows.length === 0) {
-    return NextResponse.json({ error: "classId and at least one row are required." }, { status: 400 });
+    return NextResponse.json({ error: "classId and at least one name are required." }, { status: 400 });
   }
 
   // Verify this teacher is assigned to the target class
@@ -45,42 +65,45 @@ export async function POST(req: NextRequest) {
   }
 
   const schoolId = assignment[0].schoolId;
-  const created: { name: string; identifier: string; generatedPassword?: string }[] = [];
-  const failed: { name: string; identifier: string; error: string }[] = [];
+  const created: { name: string; username: string; password: string }[] = [];
+  const failed: { name: string; error: string }[] = [];
 
   for (const row of rows) {
     const name = row.name?.trim();
-    const identifier = row.identifier?.trim().toLowerCase();
-    if (!name || !identifier) {
-      failed.push({ name: name ?? "", identifier: identifier ?? "", error: "Name and identifier are required." });
+    if (!name) {
+      failed.push({ name: "", error: "Name is blank." });
       continue;
     }
 
-    const password = row.password?.trim() || randomBytes(6).toString("hex");
-    const isEmail = identifier.includes("@");
-    const email = isEmail ? identifier : `${identifier}@compile.internal`;
-    const username = isEmail ? undefined : identifier;
-    let generatedPassword: string | undefined;
-    if (!row.password?.trim()) generatedPassword = password;
+    const password = randomBytes(6).toString("hex"); // e.g. "a3f7c2d1e5b8"
+    const baseUsername = slugifyName(name);
+    let username = baseUsername;
+    let email = `${username}@compile.internal`;
 
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-      user_metadata: { full_name: name },
-    });
+    // Try to create auth user; if the email is taken (collision), append a
+    // random 3-char suffix to the username and retry once.
+    let authResult = await createAuthUser(email, password, name);
 
-    if (authError || !authData.user) {
-      failed.push({ name, identifier, error: authError?.message ?? "Auth creation failed." });
+    if (authResult.error) {
+      const msg = authResult.error.message.toLowerCase();
+      if (msg.includes("already") || msg.includes("registered") || msg.includes("exists")) {
+        username = `${baseUsername}_${randomBytes(2).toString("hex")}`;
+        email = `${username}@compile.internal`;
+        authResult = await createAuthUser(email, password, name);
+      }
+    }
+
+    if (authResult.error || !authResult.data.user) {
+      failed.push({ name, error: authResult.error?.message ?? "Auth creation failed." });
       continue;
     }
 
-    const userId = authData.user.id;
+    const userId = authResult.data.user.id;
 
     try {
       await db
         .insert(profiles)
-        .values({ id: userId, email, username: username ?? null, fullName: name })
+        .values({ id: userId, email, username, fullName: name })
         .onConflictDoNothing();
 
       await db
@@ -103,10 +126,10 @@ export async function POST(req: NextRequest) {
         ).catch(() => {});
       }
 
-      created.push({ name, identifier, generatedPassword });
+      created.push({ name, username, password });
     } catch (err) {
       await supabaseAdmin.auth.admin.deleteUser(userId).catch(() => {});
-      failed.push({ name, identifier, error: err instanceof Error ? err.message : "Database error." });
+      failed.push({ name, error: err instanceof Error ? err.message : "Database error." });
     }
   }
 

@@ -15,29 +15,36 @@ function formatTime(totalSeconds: number): string {
 type Props = {
   lessonId: string;
   classId: string;
-  classSection: string; // display name e.g. "JSS2 A"
+  classSection: string;
+  isLocalReady: boolean;          // true only when local encrypted file is ready
+  videoProvider?: string | null;  // "youtube" | "vdocipher" | null
+  videoId?: string | null;        // YouTube video ID or provider ID
 };
 
-export default function PlayForClassPlayer({ lessonId, classId, classSection }: Props) {
+export default function PlayForClassPlayer({
+  lessonId,
+  classId,
+  classSection,
+  isLocalReady,
+  videoProvider,
+  videoId,
+}: Props) {
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [resumeFrom, setResumeFrom] = useState<number>(0);
 
   const videoRef = useRef<HTMLVideoElement>(null);
-  // Track the position of the last save so we only write every 10 seconds
   const lastSavedPositionRef = useRef<number>(0);
-  // Prevents double-seeking if metadata loads before or after the fetch resolves
   const didSeekRef = useRef<boolean>(false);
 
   const saveProgress = useCallback(
     async (positionSeconds: number) => {
-      const position = Math.floor(positionSeconds);
       lastSavedPositionRef.current = positionSeconds;
       try {
         await fetch(`/api/school/lessons/${lessonId}/class-progress`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ classId, lastPositionSeconds: position }),
+          body: JSON.stringify({ classId, lastPositionSeconds: Math.floor(positionSeconds) }),
         });
       } catch {
         // Best-effort — playback continues regardless of save failure
@@ -51,17 +58,20 @@ export default function PlayForClassPlayer({ lessonId, classId, classSection }: 
     didSeekRef.current = false;
     lastSavedPositionRef.current = 0;
 
+    // Progress tracking only applies to the local video player (not YouTube embed)
     let savedPosition = 0;
-    try {
-      const res = await fetch(
-        `/api/school/lessons/${lessonId}/class-progress?classId=${classId}`
-      );
-      if (res.ok) {
-        const data = (await res.json()) as { lastPositionSeconds?: number };
-        savedPosition = data.lastPositionSeconds ?? 0;
+    if (isLocalReady) {
+      try {
+        const res = await fetch(
+          `/api/school/lessons/${lessonId}/class-progress?classId=${classId}`
+        );
+        if (res.ok) {
+          const data = (await res.json()) as { lastPositionSeconds?: number };
+          savedPosition = data.lastPositionSeconds ?? 0;
+        }
+      } catch {
+        // Fall through — start from 0
       }
-    } catch {
-      // Fall through — start from 0
     }
 
     setResumeFrom(savedPosition);
@@ -89,7 +99,6 @@ export default function PlayForClassPlayer({ lessonId, classId, classSection }: 
     }
   }
 
-  // Seek to saved position once the video has enough metadata to accept currentTime
   function handleLoadedMetadata() {
     const video = videoRef.current;
     if (!video || didSeekRef.current || resumeFrom <= 0) return;
@@ -97,7 +106,6 @@ export default function PlayForClassPlayer({ lessonId, classId, classSection }: 
     didSeekRef.current = true;
   }
 
-  // Save every 10 seconds while playing
   function handleTimeUpdate() {
     const video = videoRef.current;
     if (!video) return;
@@ -106,7 +114,6 @@ export default function PlayForClassPlayer({ lessonId, classId, classSection }: 
     }
   }
 
-  // Save immediately on pause or end
   function handlePauseOrEnd() {
     const video = videoRef.current;
     if (video) void saveProgress(video.currentTime);
@@ -123,6 +130,8 @@ export default function PlayForClassPlayer({ lessonId, classId, classSection }: 
       void video.play().catch(() => {});
     }
   }
+
+  const hasYoutube = videoProvider === "youtube" && !!videoId;
 
   return (
     <div className="border-t border-line">
@@ -146,44 +155,75 @@ export default function PlayForClassPlayer({ lessonId, classId, classSection }: 
             className="overflow-hidden rounded-[3px] border border-line bg-surface"
             style={{ aspectRatio: "16/9" }}
           >
-            <video
-              ref={videoRef}
-              className="h-full w-full"
-              controls
-              onLoadedMetadata={handleLoadedMetadata}
-              onTimeUpdate={handleTimeUpdate}
-              onPause={handlePauseOrEnd}
-              onEnded={handlePauseOrEnd}
-            >
-              <source src={`/api/school/video/${lessonId}`} type="video/mp4" />
-            </video>
+            {isLocalReady ? (
+              /* Local encrypted file — decrypt-and-stream via the video route */
+              <video
+                ref={videoRef}
+                className="h-full w-full"
+                controls
+                onLoadedMetadata={handleLoadedMetadata}
+                onTimeUpdate={handleTimeUpdate}
+                onPause={handlePauseOrEnd}
+                onEnded={handlePauseOrEnd}
+              >
+                <source src={`/api/school/video/${lessonId}`} type="video/mp4" />
+              </video>
+            ) : hasYoutube ? (
+              /* Cloud / demo — YouTube embed fallback */
+              <iframe
+                src={`https://www.youtube-nocookie.com/embed/${videoId}?modestbranding=1&rel=0&iv_load_policy=3`}
+                className="h-full w-full"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                title="Lesson video"
+              />
+            ) : (
+              /* No source at all */
+              <div className="flex h-full items-center justify-center">
+                <p className="text-center text-sm text-muted">
+                  Video not yet available for this lesson.
+                </p>
+              </div>
+            )}
           </div>
 
-          <div className="flex items-center justify-between gap-4">
+          {isLocalReady && (
+            <div className="flex items-center justify-between gap-4">
+              <p className="text-xs text-muted">
+                {resumeFrom > 0 ? (
+                  <>
+                    Resumed from{" "}
+                    <span className="font-mono font-semibold text-ink">
+                      {formatTime(resumeFrom)}
+                    </span>{" "}
+                    for{" "}
+                    <span className="font-semibold text-ink">{classSection}</span>
+                  </>
+                ) : (
+                  <>
+                    Playing for{" "}
+                    <span className="font-semibold text-ink">{classSection}</span>
+                  </>
+                )}
+              </p>
+              <button
+                onClick={() => void handleRestart()}
+                className="shrink-0 font-mono text-xs text-muted underline-offset-2 hover:text-navy hover:underline"
+              >
+                Restart from beginning
+              </button>
+            </div>
+          )}
+
+          {!isLocalReady && hasYoutube && (
             <p className="text-xs text-muted">
-              {resumeFrom > 0 ? (
-                <>
-                  Resumed from{" "}
-                  <span className="font-mono font-semibold text-ink">
-                    {formatTime(resumeFrom)}
-                  </span>{" "}
-                  for{" "}
-                  <span className="font-semibold text-ink">{classSection}</span>
-                </>
-              ) : (
-                <>
-                  Playing for{" "}
-                  <span className="font-semibold text-ink">{classSection}</span>
-                </>
-              )}
+              Playing for <span className="font-semibold text-ink">{classSection}</span>
+              {" · "}
+              <span className="text-muted">
+                Local video not yet downloaded — showing source video.
+              </span>
             </p>
-            <button
-              onClick={() => void handleRestart()}
-              className="shrink-0 font-mono text-xs text-muted underline-offset-2 hover:text-navy hover:underline"
-            >
-              Restart from beginning
-            </button>
-          </div>
+          )}
         </div>
       )}
     </div>
