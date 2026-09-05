@@ -97,6 +97,9 @@ const statements = [
     saved_at timestamptz NOT NULL DEFAULT now(),
     UNIQUE(student_id, lesson_id)
   )`,
+  // username support on profiles
+  `ALTER TABLE profiles ADD COLUMN IF NOT EXISTS username text UNIQUE`,
+
   // class_lesson_progress — teacher's "Play for Class" playback position
   `CREATE TABLE IF NOT EXISTS class_lesson_progress (
     lesson_id              uuid NOT NULL REFERENCES lessons(id) ON DELETE CASCADE,

@@ -14,6 +14,7 @@ import {
 import { and, eq, sql } from "drizzle-orm";
 import Link from "next/link";
 import DashboardHeader from "@/components/school/DashboardHeader";
+import AddTeacherSection from "./AddTeacherSection";
 
 export default async function AdminDashboard() {
   const session = await getSchoolSession();
@@ -31,15 +32,32 @@ export default async function AdminDashboard() {
     .where(eq(classes.schoolId, schoolId))
     .orderBy(classes.name);
 
-  // Teacher name per class
+  // All teachers with their assigned classes
   const teacherRows = await db
     .select({
+      profileId: teacherAssignments.profileId,
       classId: teacherAssignments.classId,
       teacherName: profiles.fullName,
+      teacherEmail: profiles.email,
+      teacherUsername: profiles.username,
     })
     .from(teacherAssignments)
     .innerJoin(profiles, eq(teacherAssignments.profileId, profiles.id))
     .where(eq(teacherAssignments.schoolId, schoolId));
+
+  // Group classes per teacher
+  const teacherMap = new Map<string, { name: string; identifier: string; classIds: string[] }>();
+  for (const row of teacherRows) {
+    if (!teacherMap.has(row.profileId)) {
+      teacherMap.set(row.profileId, {
+        name: row.teacherName ?? row.profileId,
+        identifier: row.teacherUsername ?? row.teacherEmail,
+        classIds: [],
+      });
+    }
+    teacherMap.get(row.profileId)!.classIds.push(row.classId);
+  }
+  const teachers = Array.from(teacherMap.values());
 
   const teacherByClass = Object.fromEntries(
     teacherRows.map((r) => [r.classId, r.teacherName])
@@ -75,7 +93,7 @@ export default async function AdminDashboard() {
     releaseCountRows.map((r) => [r.classId, r.count])
   );
 
-  // Total lesson count for the school's levels
+  // Total lesson count
   const totalLessonCount = await db
     .select({ count: sql<number>`count(*)::int`.as("count") })
     .from(lessons);
@@ -102,7 +120,24 @@ export default async function AdminDashboard() {
     (statsByStatus["ai_graded"] ?? 0) +
     (statsByStatus["teacher_confirmed"] ?? 0);
 
-  // Total students across school
+  // Full student list with class info and submission count
+  const studentRows = await db
+    .select({
+      profileId: studentClasses.profileId,
+      studentName: profiles.fullName,
+      studentUsername: profiles.username,
+      studentEmail: profiles.email,
+      classId: studentClasses.classId,
+      enrolledAt: studentClasses.enrolledAt,
+    })
+    .from(studentClasses)
+    .innerJoin(profiles, eq(studentClasses.profileId, profiles.id))
+    .innerJoin(classes, eq(studentClasses.classId, classes.id))
+    .where(eq(classes.schoolId, schoolId))
+    .orderBy(classes.name, profiles.fullName);
+
+  const classNameById = Object.fromEntries(allClasses.map((c) => [c.id, c.name]));
+
   const totalStudents = Object.values(studentCountByClass).reduce((a, b) => a + b, 0);
 
   const isActive =
@@ -136,7 +171,7 @@ export default async function AdminDashboard() {
           {[
             { label: "Classes", value: allClasses.length },
             { label: "Students", value: totalStudents },
-            { label: "Lessons available", value: totalLessons },
+            { label: "Teachers", value: teachers.length },
             { label: "Submissions", value: totalSubmissions },
           ].map((s) => (
             <div
@@ -183,6 +218,73 @@ export default async function AdminDashboard() {
               );
             })}
           </div>
+        </section>
+
+        {/* Teachers */}
+        <section>
+          <h2 className="mb-4 font-mono text-xs uppercase tracking-widest text-brass">
+            Teachers ({teachers.length})
+          </h2>
+          {teachers.length === 0 ? (
+            <p className="text-sm text-muted">No teachers added yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {teachers.map((t, i) => (
+                <div
+                  key={i}
+                  className="flex flex-col gap-1 rounded-[3px] border border-line bg-surface px-5 py-3 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div>
+                    <span className="text-sm font-semibold text-navy-deep">{t.name}</span>
+                    <span className="ml-2 font-mono text-xs text-muted">{t.identifier}</span>
+                  </div>
+                  <div className="font-mono text-xs text-muted">
+                    {t.classIds.map((id) => classNameById[id] ?? id).join(", ")}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* Add Teacher */}
+        <AddTeacherSection classes={allClasses.map((c) => ({ id: c.id, name: c.name }))} />
+
+        {/* Students */}
+        <section>
+          <h2 className="mb-4 font-mono text-xs uppercase tracking-widest text-brass">
+            All Students ({studentRows.length})
+          </h2>
+          {studentRows.length === 0 ? (
+            <p className="text-sm text-muted">No students enrolled yet. Teachers add students from their dashboard.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-line text-left">
+                    <th className="pb-2 pr-4 font-mono text-xs text-muted">Name</th>
+                    <th className="pb-2 pr-4 font-mono text-xs text-muted">Username / Email</th>
+                    <th className="pb-2 font-mono text-xs text-muted">Class</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-line">
+                  {studentRows.map((s) => (
+                    <tr key={`${s.profileId}-${s.classId}`}>
+                      <td className="py-2.5 pr-4 font-semibold text-navy-deep">
+                        {s.studentName ?? "—"}
+                      </td>
+                      <td className="py-2.5 pr-4 font-mono text-xs text-muted">
+                        {s.studentUsername ?? s.studentEmail}
+                      </td>
+                      <td className="py-2.5 font-mono text-xs text-muted">
+                        {classNameById[s.classId] ?? s.classId}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </section>
 
         {/* Submission overview */}

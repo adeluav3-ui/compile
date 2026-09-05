@@ -29,6 +29,7 @@ export function getLocalDb(): BetterSqlite3.Database | null {
     CREATE TABLE IF NOT EXISTS local_credentials (
       user_id   TEXT PRIMARY KEY,
       email     TEXT NOT NULL UNIQUE,
+      username  TEXT UNIQUE,
       pw_hash   TEXT NOT NULL,
       role      TEXT NOT NULL,
       school_id TEXT NOT NULL,
@@ -66,6 +67,7 @@ export function getLocalDb(): BetterSqlite3.Database | null {
   for (const stmt of [
     "ALTER TABLE video_sync ADD COLUMN video_source TEXT",
     "ALTER TABLE video_sync ADD COLUMN attempt_count INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE local_credentials ADD COLUMN username TEXT",
   ]) {
     try { db.exec(stmt); } catch { /* column already exists */ }
   }

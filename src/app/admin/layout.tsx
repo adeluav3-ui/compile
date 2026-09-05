@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import SuperAdminSignOut from "./SuperAdminSignOut";
 
 export const metadata = { title: "Compile — Super Admin" };
 
@@ -35,6 +36,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             >
               + Onboard school
             </Link>
+            <SuperAdminSignOut />
           </nav>
         </div>
       </header>

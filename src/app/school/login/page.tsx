@@ -14,7 +14,7 @@ function LoginForm() {
   const next = searchParams.get("next");
   const errorParam = searchParams.get("error");
 
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(
@@ -30,13 +30,13 @@ function LoginForm() {
     setError("");
     setOfflineBanner(false);
 
-    const emailLower = email.trim().toLowerCase();
+    const identifierNorm = identifier.trim().toLowerCase();
 
     // Super admin bypasses the fallback login API and calls Supabase directly
-    if (emailLower === SUPER_ADMIN_EMAIL) {
+    if (identifierNorm === SUPER_ADMIN_EMAIL) {
       const supabase = createSupabaseBrowserClient();
       const { error: authError } = await supabase.auth.signInWithPassword({
-        email: emailLower,
+        email: identifierNorm,
         password,
       });
       if (authError) {
@@ -54,7 +54,7 @@ function LoginForm() {
       const res = await fetch("/api/school/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: emailLower, password }),
+        body: JSON.stringify({ identifier: identifierNorm, password }),
       });
 
       const data = await res.json();
@@ -80,11 +80,20 @@ function LoginForm() {
     setLoading(true);
     setError("");
 
+    const identifierNorm = identifier.trim().toLowerCase();
+
+    // Username-only accounts use synthetic emails — password reset must go through school admin
+    if (!identifierNorm.includes("@")) {
+      setError("Username accounts: contact your school admin to reset your password.");
+      setLoading(false);
+      return;
+    }
+
     // Password reset requires internet — detect and show a clear message
     try {
       const supabase = createSupabaseBrowserClient();
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(
-        email.trim().toLowerCase(),
+        identifierNorm,
         { redirectTo: `${window.location.origin}/school/auth/callback` }
       );
 
@@ -163,16 +172,17 @@ function LoginForm() {
           >
             <div>
               <label className="mb-1.5 block font-mono text-xs text-muted">
-                Email
+                Email or username
               </label>
               <input
-                type="email"
+                type="text"
                 required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="username"
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
                 disabled={loading}
                 className="w-full rounded-[3px] border border-line bg-surface px-3 py-2.5 text-sm text-ink placeholder:text-muted focus:border-navy focus:outline-none disabled:opacity-60"
-                placeholder="you@school.edu.ng"
+                placeholder="your.email@school.edu.ng or username"
               />
             </div>
 

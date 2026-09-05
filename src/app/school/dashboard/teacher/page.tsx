@@ -10,7 +10,7 @@ import {
   submissions,
   profiles,
 } from "@/db/schema";
-import { and, eq, desc } from "drizzle-orm";
+import { and, eq, desc, inArray } from "drizzle-orm";
 import Link from "next/link";
 import DashboardHeader from "@/components/school/DashboardHeader";
 import ClassStatusPanel from "@/components/school/ClassStatusPanel";
@@ -19,19 +19,32 @@ import QAReplyForm from "./QAReplyForm";
 import GradeConfirm from "./GradeConfirm";
 import TeacherLessonPreview from "./TeacherLessonPreview";
 import PlayForClassPlayer from "./PlayForClassPlayer";
+import AddStudentsSection from "./AddStudentsSection";
 import { getVideoSyncStates } from "@/lib/video-sync";
 
-export default async function TeacherDashboard() {
+export default async function TeacherDashboard({
+  searchParams,
+}: {
+  searchParams: Promise<{ classId?: string }>;
+}) {
   const session = await getSchoolSession();
   if (!session || session.role !== "teacher") redirect("/school/login");
 
-  const [assignment] = await db
-    .select()
+  // Load all DB assignments
+  const dbAssignments = await db
+    .select({ classId: teacherAssignments.classId })
     .from(teacherAssignments)
-    .where(eq(teacherAssignments.profileId, session.profileId))
-    .limit(1);
+    .where(eq(teacherAssignments.profileId, session.profileId));
 
-  if (!assignment) {
+  // Demo/local sessions have no DB assignments — fall back to session.classId
+  const assignedClassIds: string[] =
+    dbAssignments.length > 0
+      ? dbAssignments.map((a) => a.classId)
+      : session.classId
+        ? [session.classId]
+        : [];
+
+  if (assignedClassIds.length === 0) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-paper">
         <p className="text-muted">No class assigned to your account.</p>
@@ -39,29 +52,42 @@ export default async function TeacherDashboard() {
     );
   }
 
-  const classId = assignment.classId;
-  const [cls] = await db.select().from(classes).where(eq(classes.id, classId));
+  const { classId: classIdParam } = await searchParams;
 
-  const allLessons = await db
-    .select()
-    .from(lessons)
-    .where(eq(lessons.level, cls.level))
-    .orderBy(lessons.order);
+  const activeClassId =
+    (classIdParam && assignedClassIds.includes(classIdParam) ? classIdParam : null) ??
+    assignedClassIds[0];
+
+  // Load class info for all assigned classes (for the picker + active class header)
+  const allAssignedClasses = await db
+    .select({ id: classes.id, name: classes.name, level: classes.level, academicYear: classes.academicYear })
+    .from(classes)
+    .where(
+      assignedClassIds.length === 1
+        ? eq(classes.id, assignedClassIds[0])
+        : inArray(classes.id, assignedClassIds)
+    );
+
+  const cls = allAssignedClasses.find((c) => c.id === activeClassId) ?? null;
+
+  const allLessons = cls
+    ? await db
+        .select()
+        .from(lessons)
+        .where(eq(lessons.level, cls.level))
+        .orderBy(lessons.order)
+    : [];
 
   const releases = await db
     .select({ lessonId: lessonReleases.lessonId })
     .from(lessonReleases)
-    .where(eq(lessonReleases.classId, classId));
+    .where(eq(lessonReleases.classId, activeClassId));
 
   const releasedIds = new Set(releases.map((r) => r.lessonId));
 
-  // Video sync state — only populated in offline School Edition build
-  const releasedLessonIds = allLessons
-    .filter((l) => releasedIds.has(l.id))
-    .map((l) => l.id);
+  const releasedLessonIds = allLessons.filter((l) => releasedIds.has(l.id)).map((l) => l.id);
   const videoSyncStates = getVideoSyncStates(releasedLessonIds);
 
-  // Q&A items that need a teacher reply — with the student's name
   const studentProfiles = profiles;
   const pendingQA = await db
     .select({
@@ -75,13 +101,12 @@ export default async function TeacherDashboard() {
     .innerJoin(studentProfiles, eq(lessonQuestions.studentId, studentProfiles.id))
     .where(
       and(
-        eq(lessonQuestions.classId, classId),
+        eq(lessonQuestions.classId, activeClassId),
         eq(lessonQuestions.status, "ai_answered")
       )
     )
     .orderBy(desc(lessonQuestions.createdAt));
 
-  // Submissions awaiting review — with the student's name
   const pendingSubmissions = await db
     .select({
       id: submissions.id,
@@ -96,7 +121,7 @@ export default async function TeacherDashboard() {
     .innerJoin(studentProfiles, eq(submissions.studentId, studentProfiles.id))
     .where(
       and(
-        eq(submissions.classId, classId),
+        eq(submissions.classId, activeClassId),
         eq(submissions.status, "ai_graded")
       )
     )
@@ -107,10 +132,34 @@ export default async function TeacherDashboard() {
       <DashboardHeader name={session.name} role="teacher" isReal={session.isReal} />
 
       <main className="mx-auto max-w-4xl space-y-10 px-6 py-8">
+
+        {/* ── Class picker (only shown when teacher has multiple classes) ── */}
+        {allAssignedClasses.length > 1 && (
+          <div className="flex gap-1 border-b border-line">
+            {allAssignedClasses.map((c) => (
+              <Link
+                key={c.id}
+                href={`/school/dashboard/teacher?classId=${c.id}`}
+                className={`rounded-t-[3px] px-4 py-2 font-mono text-xs transition-colors ${
+                  c.id === activeClassId
+                    ? "border border-b-0 border-line bg-surface text-navy-deep"
+                    : "text-muted hover:text-navy"
+                }`}
+              >
+                {c.name}
+              </Link>
+            ))}
+          </div>
+        )}
+
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="font-serif text-2xl font-semibold text-navy-deep">{cls.name}</h1>
-            <p className="mt-1 text-sm text-muted">{cls.level} · {cls.academicYear}</p>
+            <h1 className="font-serif text-2xl font-semibold text-navy-deep">
+              {cls?.name ?? "Demo Class"}
+            </h1>
+            <p className="mt-1 text-sm text-muted">
+              {cls ? `${cls.level} · ${cls.academicYear}` : "Demo session"}
+            </p>
           </div>
           <Link
             href="/school/dashboard/teacher/assessments"
@@ -128,54 +177,58 @@ export default async function TeacherDashboard() {
           <h2 className="mb-4 font-mono text-xs uppercase tracking-widest text-brass">
             Lessons — Release Control
           </h2>
-          <div className="space-y-2">
-            {allLessons.map((lesson) => (
-              <div
-                key={lesson.id}
-                className="rounded-[3px] border border-line bg-surface"
-              >
-                <div className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <div className="text-sm font-semibold text-navy-deep">
-                      {lesson.order}. {lesson.title}
+          {allLessons.length === 0 ? (
+            <p className="text-sm text-muted">No lessons available for this class level.</p>
+          ) : (
+            <div className="space-y-2">
+              {allLessons.map((lesson) => (
+                <div
+                  key={lesson.id}
+                  className="rounded-[3px] border border-line bg-surface"
+                >
+                  <div className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <div className="text-sm font-semibold text-navy-deep">
+                        {lesson.order}. {lesson.title}
+                      </div>
+                      {lesson.description && (
+                        <div className="mt-0.5 max-w-md text-xs text-muted">{lesson.description}</div>
+                      )}
                     </div>
-                    {lesson.description && (
-                      <div className="mt-0.5 max-w-md text-xs text-muted">{lesson.description}</div>
-                    )}
+                    <div className="shrink-0">
+                      <ReleaseToggleButton
+                        lessonId={lesson.id}
+                        classId={activeClassId}
+                        initialReleased={releasedIds.has(lesson.id)}
+                        initialVideoStatus={
+                          (videoSyncStates[lesson.id]?.status ?? null) as
+                            | "pending" | "downloading" | "ready" | "error" | null
+                        }
+                      />
+                    </div>
                   </div>
-                  <div className="shrink-0">
-                    <ReleaseToggleButton
+                  {releasedIds.has(lesson.id) && (
+                    <PlayForClassPlayer
                       lessonId={lesson.id}
-                      classId={classId}
-                      initialReleased={releasedIds.has(lesson.id)}
-                      initialVideoStatus={
-                        (videoSyncStates[lesson.id]?.status ?? null) as
-                          | "pending" | "downloading" | "ready" | "error" | null
-                      }
+                      classId={activeClassId}
+                      classSection={cls?.name ?? "Demo Class"}
                     />
-                  </div>
-                </div>
-                {releasedIds.has(lesson.id) && (
-                  <PlayForClassPlayer
-                    lessonId={lesson.id}
-                    classId={classId}
-                    classSection={cls.name}
+                  )}
+                  <TeacherLessonPreview
+                    lesson={{
+                      id: lesson.id,
+                      title: lesson.title,
+                      description: lesson.description ?? null,
+                      videoId: lesson.videoId ?? null,
+                      videoProvider: lesson.videoProvider ?? null,
+                      order: lesson.order,
+                      notes: lesson.notes ?? null,
+                    }}
                   />
-                )}
-                <TeacherLessonPreview
-                  lesson={{
-                    id: lesson.id,
-                    title: lesson.title,
-                    description: lesson.description ?? null,
-                    videoId: lesson.videoId ?? null,
-                    videoProvider: lesson.videoProvider ?? null,
-                    order: lesson.order,
-                    notes: lesson.notes ?? null,
-                  }}
-                />
-              </div>
-            ))}
-          </div>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
 
         {/* ── Q&A Review ── */}
@@ -214,6 +267,9 @@ export default async function TeacherDashboard() {
             </div>
           )}
         </section>
+
+        {/* ── Add Students ── */}
+        <AddStudentsSection classId={activeClassId} />
 
         {/* ── Submissions Review ── */}
         <section>

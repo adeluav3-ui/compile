@@ -47,7 +47,8 @@ export async function cacheLocalCredential(
   userId: string,
   email: string,
   password: string,
-  session: Pick<SchoolSession, "role" | "schoolId" | "classId" | "name">
+  session: Pick<SchoolSession, "role" | "schoolId" | "classId" | "name">,
+  username?: string
 ): Promise<void> {
   const db = getLocalDb();
   if (!db) return; // Cloud build — no-op
@@ -55,10 +56,11 @@ export async function cacheLocalCredential(
   const pwHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
 
   db.prepare(`
-    INSERT INTO local_credentials (user_id, email, pw_hash, role, school_id, class_id, name, cached_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO local_credentials (user_id, email, username, pw_hash, role, school_id, class_id, name, cached_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(user_id) DO UPDATE SET
       email     = excluded.email,
+      username  = COALESCE(excluded.username, username),
       pw_hash   = excluded.pw_hash,
       role      = excluded.role,
       school_id = excluded.school_id,
@@ -68,6 +70,7 @@ export async function cacheLocalCredential(
   `).run(
     userId,
     email.toLowerCase(),
+    username?.toLowerCase() ?? null,
     pwHash,
     session.role,
     session.schoolId,
@@ -79,20 +82,29 @@ export async function cacheLocalCredential(
 
 // ---------------------------------------------------------------------------
 // Verify a login attempt against the local cache
+// Accepts either email or username as the identifier.
 // ---------------------------------------------------------------------------
 
 export async function verifyLocalCredential(
-  email: string,
+  identifier: string,
   password: string
 ): Promise<SchoolSession | null> {
   const db = getLocalDb();
   if (!db) return null;
 
+  const isEmail = identifier.includes("@");
+  const normalized = identifier.trim().toLowerCase();
+
   const row = db
-    .prepare("SELECT * FROM local_credentials WHERE email = ?")
-    .get(email.toLowerCase()) as {
+    .prepare(
+      isEmail
+        ? "SELECT * FROM local_credentials WHERE email = ?"
+        : "SELECT * FROM local_credentials WHERE username = ? OR email = ?"
+    )
+    .get(...(isEmail ? [normalized] : [normalized, normalized])) as {
       user_id: string;
       email: string;
+      username: string | null;
       pw_hash: string;
       role: string;
       school_id: string;

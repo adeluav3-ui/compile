@@ -51,6 +51,10 @@ export const paymentStatusEnum = pgEnum("payment_status", [
 export const profiles = pgTable("profiles", {
   id: uuid("id").primaryKey(), // mirrors auth.users.id
   email: text("email").notNull().unique(),
+  // username is optional — accounts created with only a username use a synthetic
+  // internal email (username@compile.internal) with Supabase Auth. Login accepts
+  // either field; the API resolves username → email before calling Supabase.
+  username: text("username").unique(),
   fullName: text("full_name"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),

@@ -209,6 +209,19 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
+  // ── Routes that must be reachable without an existing session ───────────────
+  // /api/school/session    — demo page sets the session cookie here (no prior auth)
+  // /api/school/auth/login — login endpoint creates the session (no prior auth)
+  // /api/school/auth/signout — must clear cookies even if session is invalid
+  const UNAUTHED_API_PATHS = [
+    "/api/school/session",
+    "/api/school/auth/login",
+    "/api/school/auth/signout",
+  ];
+  if (UNAUTHED_API_PATHS.includes(pathname)) {
+    return supabaseResponse;
+  }
+
   // ── Super admin routes ──────────────────────────────────────────────────────
   if (pathname.startsWith("/admin")) {
     if (!user || user.email !== SUPER_ADMIN_EMAIL) {

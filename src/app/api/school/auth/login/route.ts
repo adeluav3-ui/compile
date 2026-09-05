@@ -7,17 +7,43 @@ import {
   issueLocalSessionToken,
   LOCAL_SESSION_COOKIE,
 } from "@/lib/local-auth";
+import { db } from "@/db";
+import { profiles } from "@/db/schema";
+import { eq } from "drizzle-orm";
 
 const LOCAL_TOKEN_MAX_AGE = 24 * 60 * 60; // 24 hours
 const SUPABASE_TIMEOUT_MS = 3000;
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
-  const email: string = body?.email?.trim().toLowerCase() ?? "";
+  const identifier: string = body?.identifier?.trim() ?? "";
   const password: string = body?.password ?? "";
 
-  if (!email || !password) {
-    return NextResponse.json({ error: "Email and password are required." }, { status: 400 });
+  if (!identifier || !password) {
+    return NextResponse.json({ error: "Identifier and password are required." }, { status: 400 });
+  }
+
+  const isEmail = identifier.includes("@");
+  const normalized = identifier.toLowerCase();
+
+  // Resolve email from username when needed (Supabase Auth requires email)
+  let resolvedEmail = isEmail ? normalized : null;
+  let resolvedUsername: string | undefined = isEmail ? undefined : normalized;
+
+  if (!isEmail) {
+    try {
+      const row = await db
+        .select({ email: profiles.email })
+        .from(profiles)
+        .where(eq(profiles.username, normalized))
+        .limit(1);
+
+      if (row[0]) {
+        resolvedEmail = row[0].email.toLowerCase();
+      }
+    } catch {
+      // DB unreachable — fall through to offline path
+    }
   }
 
   // ── 1. Try Supabase with a 3-second timeout ────────────────────────────────
@@ -26,36 +52,38 @@ export async function POST(req: NextRequest) {
   >> | null = null;
   let timedOut = false;
 
-  try {
-    const supabase = await createSupabaseServerClient();
-    const raceResult = await Promise.race([
-      supabase.auth.signInWithPassword({ email, password }),
-      new Promise<"timeout">((resolve) => setTimeout(() => resolve("timeout"), SUPABASE_TIMEOUT_MS)),
-    ]);
+  if (resolvedEmail) {
+    try {
+      const supabase = await createSupabaseServerClient();
+      const raceResult = await Promise.race([
+        supabase.auth.signInWithPassword({ email: resolvedEmail, password }),
+        new Promise<"timeout">((resolve) => setTimeout(() => resolve("timeout"), SUPABASE_TIMEOUT_MS)),
+      ]);
 
-    if (raceResult === "timeout") {
+      if (raceResult === "timeout") {
+        timedOut = true;
+      } else {
+        supabaseResult = raceResult;
+      }
+    } catch {
       timedOut = true;
-    } else {
-      supabaseResult = raceResult;
     }
-  } catch {
+  } else {
+    // Username provided but no matching profile found in DB — treat as offline
     timedOut = true;
   }
 
   // ── 2. Online login succeeded ──────────────────────────────────────────────
   if (supabaseResult && !supabaseResult.error && supabaseResult.data.user) {
-    // Resolve school session for role/class info needed to cache credential
     const session = await getSchoolSession();
-    if (session) {
-      // Cache credential in the background — don't block the login response
-      cacheLocalCredential(supabaseResult.data.user.id, email, password, {
-        role: session.role,
-        schoolId: session.schoolId,
-        classId: session.classId,
-        name: session.name,
-      }).catch(() => {
-        // Local cache failure is non-fatal
-      });
+    if (session && resolvedEmail) {
+      cacheLocalCredential(
+        supabaseResult.data.user.id,
+        resolvedEmail,
+        password,
+        { role: session.role, schoolId: session.schoolId, classId: session.classId, name: session.name },
+        resolvedUsername,
+      ).catch(() => {});
     }
 
     return NextResponse.json({ ok: true, redirectTo: "/school/auth/redirect" });
@@ -63,16 +91,11 @@ export async function POST(req: NextRequest) {
 
   // ── 3. Online login failed (wrong password / account issue) ───────────────
   if (supabaseResult?.error && !timedOut) {
-    // Supabase was reachable but rejected the credentials.
-    // Do NOT fall back to local — the cloud explicitly said no.
-    return NextResponse.json(
-      { error: supabaseResult.error.message },
-      { status: 401 }
-    );
+    return NextResponse.json({ error: supabaseResult.error.message }, { status: 401 });
   }
 
   // ── 4. Offline / timeout — try local credential cache ─────────────────────
-  const localSession = await verifyLocalCredential(email, password);
+  const localSession = await verifyLocalCredential(identifier, password);
 
   if (!localSession) {
     const dbAvailable = !!process.env.LOCAL_DB_PATH;
