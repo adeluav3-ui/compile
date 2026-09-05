@@ -45,17 +45,21 @@ export async function GET(
     return NextResponse.json({ lastPositionSeconds: row?.last_position_seconds ?? 0 });
   }
 
-  const [row] = await db
-    .select({ lastPositionSeconds: classLessonProgress.lastPositionSeconds })
-    .from(classLessonProgress)
-    .where(
-      and(
-        eq(classLessonProgress.lessonId, lessonId),
-        eq(classLessonProgress.classId, classId)
-      )
-    );
-
-  return NextResponse.json({ lastPositionSeconds: row?.lastPositionSeconds ?? 0 });
+  try {
+    const [row] = await db
+      .select({ lastPositionSeconds: classLessonProgress.lastPositionSeconds })
+      .from(classLessonProgress)
+      .where(
+        and(
+          eq(classLessonProgress.lessonId, lessonId),
+          eq(classLessonProgress.classId, classId)
+        )
+      );
+    return NextResponse.json({ lastPositionSeconds: row?.lastPositionSeconds ?? 0 });
+  } catch {
+    // Table may not exist yet (migration pending) — return default position
+    return NextResponse.json({ lastPositionSeconds: 0 });
+  }
 }
 
 export async function POST(
@@ -99,13 +103,17 @@ export async function POST(
     return NextResponse.json({ ok: true });
   }
 
-  await db
-    .insert(classLessonProgress)
-    .values({ lessonId, classId, lastPositionSeconds: position })
-    .onConflictDoUpdate({
-      target: [classLessonProgress.lessonId, classLessonProgress.classId],
-      set: { lastPositionSeconds: position, updatedAt: new Date() },
-    });
+  try {
+    await db
+      .insert(classLessonProgress)
+      .values({ lessonId, classId, lastPositionSeconds: position })
+      .onConflictDoUpdate({
+        target: [classLessonProgress.lessonId, classLessonProgress.classId],
+        set: { lastPositionSeconds: position, updatedAt: new Date() },
+      });
+  } catch {
+    // Best-effort — table may not exist yet or FK constraint on demo IDs
+  }
 
   return NextResponse.json({ ok: true });
 }

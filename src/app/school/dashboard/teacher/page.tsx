@@ -207,7 +207,7 @@ export default async function TeacherDashboard({
                       />
                     </div>
                   </div>
-                  {releasedIds.has(lesson.id) && (
+                  {releasedIds.has(lesson.id) && videoSyncStates[lesson.id]?.status === "ready" && (
                     <PlayForClassPlayer
                       lessonId={lesson.id}
                       classId={activeClassId}
