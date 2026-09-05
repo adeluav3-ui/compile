@@ -52,6 +52,14 @@ export function getLocalDb(): BetterSqlite3.Database | null {
       attempt_count INTEGER NOT NULL DEFAULT 0,
       updated_at    INTEGER NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS class_lesson_progress (
+      lesson_id              TEXT NOT NULL,
+      class_id               TEXT NOT NULL,
+      last_position_seconds  INTEGER NOT NULL DEFAULT 0,
+      updated_at             INTEGER NOT NULL,
+      PRIMARY KEY (lesson_id, class_id)
+    );
   `);
 
   // Idempotent column migrations

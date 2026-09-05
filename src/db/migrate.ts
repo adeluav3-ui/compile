@@ -97,6 +97,14 @@ const statements = [
     saved_at timestamptz NOT NULL DEFAULT now(),
     UNIQUE(student_id, lesson_id)
   )`,
+  // class_lesson_progress — teacher's "Play for Class" playback position
+  `CREATE TABLE IF NOT EXISTS class_lesson_progress (
+    lesson_id              uuid NOT NULL REFERENCES lessons(id) ON DELETE CASCADE,
+    class_id               uuid NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
+    last_position_seconds  integer NOT NULL DEFAULT 0,
+    updated_at             timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (lesson_id, class_id)
+  )`,
 ];
 
 async function main() {

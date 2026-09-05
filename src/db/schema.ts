@@ -568,3 +568,21 @@ export const assessmentResults = pgTable("assessment_results", {
   totalScore: integer("total_score"),
   finalizedAt: timestamp("finalized_at", { withTimezone: true }),
 });
+
+// ---------------------------------------------------------------------------
+// Class lesson progress — playback position per (lesson, class)
+// Written by the teacher while playing a lesson for a class; read on next
+// open so the teacher resumes from exactly where that class left off.
+// ---------------------------------------------------------------------------
+
+export const classLessonProgress = pgTable(
+  "class_lesson_progress",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    lessonId: uuid("lesson_id").notNull().references(() => lessons.id, { onDelete: "cascade" }),
+    classId: uuid("class_id").notNull().references(() => classes.id, { onDelete: "cascade" }),
+    lastPositionSeconds: integer("last_position_seconds").notNull().default(0),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [unique().on(t.lessonId, t.classId)]
+);

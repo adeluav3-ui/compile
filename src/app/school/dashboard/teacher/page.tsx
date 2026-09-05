@@ -18,6 +18,7 @@ import ReleaseToggleButton from "./ReleaseToggleButton";
 import QAReplyForm from "./QAReplyForm";
 import GradeConfirm from "./GradeConfirm";
 import TeacherLessonPreview from "./TeacherLessonPreview";
+import PlayForClassPlayer from "./PlayForClassPlayer";
 import { getVideoSyncStates } from "@/lib/video-sync";
 
 export default async function TeacherDashboard() {
@@ -154,6 +155,13 @@ export default async function TeacherDashboard() {
                     />
                   </div>
                 </div>
+                {releasedIds.has(lesson.id) && (
+                  <PlayForClassPlayer
+                    lessonId={lesson.id}
+                    classId={classId}
+                    classSection={cls.name}
+                  />
+                )}
                 <TeacherLessonPreview
                   lesson={{
                     id: lesson.id,
