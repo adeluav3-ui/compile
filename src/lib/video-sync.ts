@@ -43,6 +43,7 @@ export interface VideoSyncState {
   localPath: string | null;
   errorText: string | null;
   attemptCount: number;
+  progressPct: number; // 0-99 while downloading, 100 only when ready
   updatedAt: number;
 }
 
@@ -50,37 +51,43 @@ export interface VideoSyncState {
 // State reads
 // ---------------------------------------------------------------------------
 
+type RawSyncRow = {
+  lesson_id: string;
+  status: string;
+  video_source: string | null;
+  source_url: string | null;
+  local_path: string | null;
+  error_text: string | null;
+  attempt_count: number;
+  progress_pct: number;
+  updated_at: number;
+};
+
+function rowToState(r: RawSyncRow): VideoSyncState {
+  return {
+    lessonId: r.lesson_id,
+    status: r.status as VideoSyncStatus,
+    videoSource: r.video_source as VideoSource | null,
+    sourceUrl: r.source_url,
+    localPath: r.local_path,
+    errorText: r.error_text,
+    attemptCount: r.attempt_count ?? 0,
+    progressPct: r.progress_pct ?? 0,
+    updatedAt: r.updated_at,
+  };
+}
+
 export function getVideoSyncState(lessonId: string): VideoSyncState | null {
   const db = getLocalDb();
   if (!db) return null;
 
   const row = db
     .prepare(
-      "SELECT lesson_id, status, video_source, source_url, local_path, error_text, attempt_count, updated_at FROM video_sync WHERE lesson_id = ?"
+      "SELECT lesson_id, status, video_source, source_url, local_path, error_text, attempt_count, progress_pct, updated_at FROM video_sync WHERE lesson_id = ?"
     )
-    .get(lessonId) as {
-    lesson_id: string;
-    status: string;
-    video_source: string | null;
-    source_url: string | null;
-    local_path: string | null;
-    error_text: string | null;
-    attempt_count: number;
-    updated_at: number;
-  } | undefined;
+    .get(lessonId) as RawSyncRow | undefined;
 
-  if (!row) return null;
-
-  return {
-    lessonId: row.lesson_id,
-    status: row.status as VideoSyncStatus,
-    videoSource: row.video_source as VideoSource | null,
-    sourceUrl: row.source_url,
-    localPath: row.local_path,
-    errorText: row.error_text,
-    attemptCount: row.attempt_count ?? 0,
-    updatedAt: row.updated_at,
-  };
+  return row ? rowToState(row) : null;
 }
 
 export function getVideoSyncStates(lessonIds: string[]): Record<string, VideoSyncState> {
@@ -90,34 +97,11 @@ export function getVideoSyncStates(lessonIds: string[]): Record<string, VideoSyn
   const placeholders = lessonIds.map(() => "?").join(",");
   const rows = db
     .prepare(
-      `SELECT lesson_id, status, video_source, source_url, local_path, error_text, attempt_count, updated_at FROM video_sync WHERE lesson_id IN (${placeholders})`
+      `SELECT lesson_id, status, video_source, source_url, local_path, error_text, attempt_count, progress_pct, updated_at FROM video_sync WHERE lesson_id IN (${placeholders})`
     )
-    .all(...lessonIds) as {
-    lesson_id: string;
-    status: string;
-    video_source: string | null;
-    source_url: string | null;
-    local_path: string | null;
-    error_text: string | null;
-    attempt_count: number;
-    updated_at: number;
-  }[];
+    .all(...lessonIds) as RawSyncRow[];
 
-  return Object.fromEntries(
-    rows.map((r) => [
-      r.lesson_id,
-      {
-        lessonId: r.lesson_id,
-        status: r.status as VideoSyncStatus,
-        videoSource: r.video_source as VideoSource | null,
-        sourceUrl: r.source_url,
-        localPath: r.local_path,
-        errorText: r.error_text,
-        attemptCount: r.attempt_count ?? 0,
-        updatedAt: r.updated_at,
-      },
-    ])
-  );
+  return Object.fromEntries(rows.map((r) => [r.lesson_id, rowToState(r)]));
 }
 
 // ---------------------------------------------------------------------------
@@ -220,16 +204,61 @@ function getVideoKey(): string | null {
 }
 
 // ---------------------------------------------------------------------------
+// Download progress — written to SQLite while a download is in flight.
+// Capped at 99 so status "ready" (written by upsertSyncState) is unambiguous.
+// ---------------------------------------------------------------------------
+
+function writeProgress(lessonId: string, pct: number): void {
+  const db = getLocalDb();
+  if (!db) return;
+  db.prepare(
+    "UPDATE video_sync SET progress_pct = ?, updated_at = ? WHERE lesson_id = ?"
+  ).run(Math.min(99, Math.max(0, pct)), Date.now(), lessonId);
+}
+
+// ---------------------------------------------------------------------------
 // Source fetchers
 // ---------------------------------------------------------------------------
 
-async function fetchFromStorage(sourceUrl: string): Promise<Buffer> {
+async function fetchFromStorage(
+  sourceUrl: string,
+  onProgress: (pct: number) => void
+): Promise<Buffer> {
   const res = await fetch(sourceUrl);
   if (!res.ok) throw new Error(`Download failed: HTTP ${res.status}`);
-  return Buffer.from(await res.arrayBuffer());
+
+  const contentLength = res.headers.get("content-length");
+  const total = contentLength ? parseInt(contentLength, 10) : 0;
+
+  // No content-length or no body stream — fall back to buffered download
+  if (!res.body || total === 0) {
+    return Buffer.from(await res.arrayBuffer());
+  }
+
+  const chunks: Uint8Array[] = [];
+  let downloaded = 0;
+  let lastReportedPct = 0;
+  const reader = res.body.getReader();
+
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    downloaded += value.length;
+    const pct = Math.round((downloaded / total) * 100);
+    if (pct >= lastReportedPct + 2) {
+      lastReportedPct = pct;
+      onProgress(pct);
+    }
+  }
+
+  return Buffer.concat(chunks.map((c) => Buffer.from(c)));
 }
 
-async function fetchFromYouTube(youtubeUrl: string): Promise<Buffer> {
+async function fetchFromYouTube(
+  youtubeUrl: string,
+  onProgress: (pct: number) => void
+): Promise<Buffer> {
   const tmpDir = await mkdtemp(path.join(os.tmpdir(), "compile-sync-"));
 
   try {
@@ -238,16 +267,34 @@ async function fetchFromYouTube(youtubeUrl: string): Promise<Buffer> {
     await new Promise<void>((resolve, reject) => {
       const proc = spawn("yt-dlp", [
         "--no-playlist",
-        // Best single MP4 file; falls back to best available then re-muxes to MP4
         "-f", "bv[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/b",
         "--merge-output-format", "mp4",
         "--no-warnings",
-        "--no-progress",
+        "--newline", // one progress line per \n — easier to parse than \r
         "-o", outputTemplate,
         youtubeUrl,
       ]);
 
       let stderr = "";
+      let lastReportedPct = 0;
+
+      proc.stdout?.on("data", (d: Buffer) => {
+        for (const line of d.toString().split(/[\r\n]+/)) {
+          const match = line.match(/\[download\]\s+([\d.]+)%/);
+          if (match) {
+            const pct = Math.round(parseFloat(match[1]));
+            if (pct >= lastReportedPct + 2) {
+              lastReportedPct = pct;
+              // yt-dlp downloads video then audio separately; scale each
+              // half to 0–99 so the bar doesn't reset mid-download.
+              // Simple heuristic: just forward the raw pct — the bar may
+              // reach ~100 and restart for the audio pass, which is fine.
+              onProgress(pct);
+            }
+          }
+        }
+      });
+
       proc.stderr?.on("data", (d: Buffer) => { stderr += d.toString(); });
 
       proc.on("error", (err) => {
@@ -387,10 +434,12 @@ async function runDownload(
   try {
     await mkdir(mediaDir, { recursive: true });
 
+    const onProgress = (pct: number) => writeProgress(lessonId, pct);
+
     const rawBytes =
       sourceInfo.source === "youtube"
-        ? await fetchFromYouTube(sourceInfo.url)
-        : await fetchFromStorage(sourceInfo.url);
+        ? await fetchFromYouTube(sourceInfo.url, onProgress)
+        : await fetchFromStorage(sourceInfo.url, onProgress);
 
     const encrypted = encryptVideo(rawBytes, videoKey);
     const localPath = path.join(mediaDir, `${lessonId}.enc`);

@@ -51,6 +51,7 @@ export function getLocalDb(): BetterSqlite3.Database | null {
       local_path    TEXT,
       error_text    TEXT,
       attempt_count INTEGER NOT NULL DEFAULT 0,
+      progress_pct  INTEGER NOT NULL DEFAULT 0,
       updated_at    INTEGER NOT NULL
     );
 
@@ -67,6 +68,7 @@ export function getLocalDb(): BetterSqlite3.Database | null {
   for (const stmt of [
     "ALTER TABLE video_sync ADD COLUMN video_source TEXT",
     "ALTER TABLE video_sync ADD COLUMN attempt_count INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE video_sync ADD COLUMN progress_pct INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE local_credentials ADD COLUMN username TEXT",
   ]) {
     try { db.exec(stmt); } catch { /* column already exists */ }

@@ -23,6 +23,7 @@ export async function GET(req: NextRequest) {
         id,
         {
           status: s.status,
+          progressPct: s.progressPct,
           errorText: s.errorText,
           updatedAt: s.updatedAt,
         },
