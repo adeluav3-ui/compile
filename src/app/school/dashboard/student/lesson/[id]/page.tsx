@@ -7,6 +7,7 @@ import Link from "next/link";
 import CodeWorkspace from "@/components/school/CodeWorkspace";
 import QAThread, { type QAItem } from "@/components/school/QAThread";
 import NotesSection from "@/components/school/NotesSection";
+import { getVideoSyncState } from "@/lib/video-sync";
 
 export default async function StudentLessonPage({
   params,
@@ -28,6 +29,12 @@ export default async function StudentLessonPage({
 
   const [lesson] = await db.select().from(lessons).where(eq(lessons.id, id));
   if (!lesson) notFound();
+
+  // In offline School Edition builds, check whether the video has been
+  // downloaded to the local host yet. null = cloud build (always playable).
+  const videoSync = process.env.LOCAL_DB_PATH
+    ? getVideoSyncState(id)
+    : null;
 
   const [savedDraft] = await db
     .select()
@@ -112,7 +119,38 @@ export default async function StudentLessonPage({
         <section>
           <h2 className="mb-3 font-mono text-xs uppercase tracking-widest text-brass">Video</h2>
           <div className="overflow-hidden rounded-[3px] border border-line bg-surface" style={{ aspectRatio: "16/9" }}>
-            {lesson.videoId && lesson.videoProvider === "youtube" ? (
+            {/* Offline build: video not yet downloaded */}
+            {videoSync && videoSync.status !== "ready" ? (
+              <div className="flex h-full items-center justify-center">
+                <div className="text-center">
+                  <div className="mb-2 text-4xl text-muted">
+                    {videoSync.status === "downloading" ? "⟳" : "▶"}
+                  </div>
+                  {videoSync.status === "downloading" ? (
+                    <>
+                      <p className="text-sm text-muted">Video is downloading…</p>
+                      <p className="mt-1 font-mono text-xs text-muted">
+                        It will be available shortly. Refresh this page to check.
+                      </p>
+                    </>
+                  ) : videoSync.status === "pending" ? (
+                    <>
+                      <p className="text-sm text-muted">Video not yet available.</p>
+                      <p className="mt-1 font-mono text-xs text-muted">
+                        Waiting for the server to connect to the internet to download it.
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm text-muted">Video unavailable.</p>
+                      <p className="mt-1 font-mono text-xs text-muted">
+                        Ask your teacher to check the school server connection.
+                      </p>
+                    </>
+                  )}
+                </div>
+              </div>
+            ) : lesson.videoId && lesson.videoProvider === "youtube" ? (
               <iframe
                 src={`https://www.youtube-nocookie.com/embed/${lesson.videoId}?modestbranding=1&rel=0&iv_load_policy=3`}
                 className="h-full w-full"
@@ -120,9 +158,9 @@ export default async function StudentLessonPage({
                 allowFullScreen
                 title={lesson.title}
               />
-            ) : lesson.contentUrl ? (
+            ) : videoSync?.status === "ready" || lesson.contentUrl ? (
               <video className="h-full w-full" controls>
-                <source src={lesson.contentUrl} />
+                <source src={`/api/school/video/${id}`} />
               </video>
             ) : (
               <div className="flex h-full items-center justify-center">

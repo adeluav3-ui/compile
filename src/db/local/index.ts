@@ -41,6 +41,15 @@ export function getLocalDb(): BetterSqlite3.Database | null {
       key   TEXT PRIMARY KEY,
       value TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS video_sync (
+      lesson_id  TEXT PRIMARY KEY,
+      status     TEXT NOT NULL DEFAULT 'pending',
+      source_url TEXT,
+      local_path TEXT,
+      error_text TEXT,
+      updated_at INTEGER NOT NULL
+    );
   `);
 
   global.__localDb = db;

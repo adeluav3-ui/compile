@@ -18,6 +18,7 @@ import ReleaseToggleButton from "./ReleaseToggleButton";
 import QAReplyForm from "./QAReplyForm";
 import GradeConfirm from "./GradeConfirm";
 import TeacherLessonPreview from "./TeacherLessonPreview";
+import { getVideoSyncStates } from "@/lib/video-sync";
 
 export default async function TeacherDashboard() {
   const session = await getSchoolSession();
@@ -52,6 +53,12 @@ export default async function TeacherDashboard() {
     .where(eq(lessonReleases.classId, classId));
 
   const releasedIds = new Set(releases.map((r) => r.lessonId));
+
+  // Video sync state — only populated in offline School Edition build
+  const releasedLessonIds = allLessons
+    .filter((l) => releasedIds.has(l.id))
+    .map((l) => l.id);
+  const videoSyncStates = getVideoSyncStates(releasedLessonIds);
 
   // Q&A items that need a teacher reply — with the student's name
   const studentProfiles = profiles;
@@ -140,6 +147,10 @@ export default async function TeacherDashboard() {
                       lessonId={lesson.id}
                       classId={classId}
                       initialReleased={releasedIds.has(lesson.id)}
+                      initialVideoStatus={
+                        (videoSyncStates[lesson.id]?.status ?? null) as
+                          | "pending" | "downloading" | "ready" | "error" | null
+                      }
                     />
                   </div>
                 </div>
