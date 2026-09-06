@@ -4,6 +4,7 @@ import { lessonReleases, lessons } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import { getSchoolSession } from "@/lib/school-session";
 import { ensureVideoSynced, getVideoSyncState } from "@/lib/video-sync";
+import { isOnlineDelivery } from "@/lib/delivery-mode";
 
 export async function POST(
   req: NextRequest,
@@ -45,10 +46,11 @@ export async function POST(
     return NextResponse.json({ error: "Could not release lesson." }, { status: 500 });
   }
 
-  // In offline School Edition builds, ensure the video file is synced locally.
+  // In offline builds only: ensure the video file is synced locally.
+  // Online delivery mode skips this entirely — the lesson is immediately playable.
   let videoStatus: string | null = null;
 
-  if (process.env.LOCAL_DB_PATH) {
+  if (!isOnlineDelivery() && process.env.LOCAL_DB_PATH) {
     const [lesson] = await db
       .select({ videoId: lessons.videoId, videoProvider: lessons.videoProvider })
       .from(lessons)

@@ -21,6 +21,7 @@ import TeacherLessonPreview from "./TeacherLessonPreview";
 import PlayForClassPlayer from "./PlayForClassPlayer";
 import AddStudentsSection from "./AddStudentsSection";
 import { getVideoSyncStates } from "@/lib/video-sync";
+import { isOnlineDelivery } from "@/lib/delivery-mode";
 
 export default async function TeacherDashboard({
   searchParams,
@@ -86,6 +87,8 @@ export default async function TeacherDashboard({
   const releasedIds = new Set(releases.map((r) => r.lessonId));
 
   const releasedLessonIds = allLessons.filter((l) => releasedIds.has(l.id)).map((l) => l.id);
+  const onlineMode = isOnlineDelivery();
+  // In online mode this always returns {} — kept so offline mode works unchanged.
   const videoSyncStates = getVideoSyncStates(releasedLessonIds);
 
   const studentProfiles = profiles;
@@ -201,11 +204,12 @@ export default async function TeacherDashboard({
                         classId={activeClassId}
                         initialReleased={releasedIds.has(lesson.id)}
                         initialVideoStatus={
+                          onlineMode ? null :
                           (videoSyncStates[lesson.id]?.status ?? null) as
                             | "pending" | "downloading" | "ready" | "error" | null
                         }
-                        initialProgressPct={videoSyncStates[lesson.id]?.progressPct ?? 0}
-                        isOfflineBuild={!!process.env.LOCAL_DB_PATH}
+                        initialProgressPct={onlineMode ? 0 : (videoSyncStates[lesson.id]?.progressPct ?? 0)}
+                        isOfflineBuild={!onlineMode}
                       />
                     </div>
                   </div>
@@ -214,7 +218,8 @@ export default async function TeacherDashboard({
                       lessonId={lesson.id}
                       classId={activeClassId}
                       classSection={cls?.name ?? "Demo Class"}
-                      isLocalReady={videoSyncStates[lesson.id]?.status === "ready"}
+                      isLocalReady={!onlineMode && videoSyncStates[lesson.id]?.status === "ready"}
+                      isOnlineMode={onlineMode}
                       videoProvider={lesson.videoProvider}
                       videoId={lesson.videoId}
                     />

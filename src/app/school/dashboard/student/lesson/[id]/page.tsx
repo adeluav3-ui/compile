@@ -8,6 +8,7 @@ import CodeWorkspace from "@/components/school/CodeWorkspace";
 import QAThread, { type QAItem } from "@/components/school/QAThread";
 import NotesSection from "@/components/school/NotesSection";
 import { getVideoSyncState } from "@/lib/video-sync";
+import { isOnlineDelivery } from "@/lib/delivery-mode";
 
 export default async function StudentLessonPage({
   params,
@@ -30,9 +31,9 @@ export default async function StudentLessonPage({
   const [lesson] = await db.select().from(lessons).where(eq(lessons.id, id));
   if (!lesson) notFound();
 
-  // In offline School Edition builds, check whether the video has been
-  // downloaded to the local host yet. null = cloud build (always playable).
-  const videoSync = process.env.LOCAL_DB_PATH
+  // Offline builds only: check whether the video has been downloaded locally.
+  // Online delivery mode skips local file handling entirely — videoSync stays null.
+  const videoSync = (!isOnlineDelivery() && process.env.LOCAL_DB_PATH)
     ? getVideoSyncState(id)
     : null;
 
@@ -162,12 +163,18 @@ export default async function StudentLessonPage({
                   <source src={`/api/school/video/${id}`} type="video/mp4" />
                 </video>
               )
+            ) : isOnlineDelivery() && lesson.videoProvider === "youtube" && lesson.videoId ? (
+              /* Online delivery mode — YouTube embed. The raw CDN URL is never
+                 returned to the browser; only the nocookie embed URL is visible. */
+              <iframe
+                src={`https://www.youtube-nocookie.com/embed/${lesson.videoId}?modestbranding=1&rel=0&iv_load_policy=3`}
+                className="h-full w-full"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                title="Lesson video"
+              />
             ) : (
-              /*
-                Cloud / development build (LOCAL_DB_PATH not set):
-                Students in this mode are accessing the admin/preview path, not the
-                offline Electron app. Show a placeholder.
-              */
+              /* Offline build, no local file ready yet — or no source configured */
               <div className="flex h-full items-center justify-center">
                 <div className="text-center">
                   <div className="mb-2 text-4xl text-muted">▶</div>

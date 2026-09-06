@@ -28,12 +28,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSchoolSession } from "@/lib/school-session";
 import { db } from "@/db";
-import { lessonReleases } from "@/db/schema";
+import { lessonReleases, lessons } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
-import { getVideoSyncState, isOnline, getStreamableUrl } from "@/lib/video-sync";
+import { getVideoSyncState, isOnline, getStreamableUrl, deriveSourceInfo } from "@/lib/video-sync";
 import { decryptVideo } from "@/lib/video-crypto";
 import { getLocalDb } from "@/db/local";
 import { readFile } from "fs/promises";
+import { isOnlineDelivery } from "@/lib/delivery-mode";
 
 export async function GET(
   req: NextRequest,
@@ -73,7 +74,99 @@ export async function GET(
 
   const mode = req.nextUrl.searchParams.get("mode");
 
-  // ── Online proxy mode ──────────────────────────────────────────────────────
+  // ── Online delivery mode (DELIVERY_MODE=online) ────────────────────────────
+  // The full offline pipeline is dormant. Proxy directly from the source.
+  // No video_sync, no local file, no encryption involved.
+  if (isOnlineDelivery()) {
+    const [lesson] = await db
+      .select({ videoId: lessons.videoId, videoProvider: lessons.videoProvider })
+      .from(lessons)
+      .where(eq(lessons.id, lessonId));
+
+    if (!lesson) return new NextResponse("Lesson not found.", { status: 404 });
+
+    const sourceInfo = deriveSourceInfo(lessonId, lesson);
+    if (!sourceInfo) {
+      return new NextResponse("No video source configured for this lesson.", { status: 404 });
+    }
+
+    if (sourceInfo.source === "storage") {
+      // Direct proxy — no yt-dlp needed
+      const proxyHeaders: Record<string, string> = {};
+      const rangeHeader = req.headers.get("range");
+      if (rangeHeader) proxyHeaders["Range"] = rangeHeader;
+
+      let upstream: Response;
+      try {
+        upstream = await fetch(sourceInfo.url, { headers: proxyHeaders });
+      } catch {
+        return new NextResponse("Failed to fetch video from storage.", { status: 502 });
+      }
+
+      const responseHeaders: Record<string, string> = {
+        "Content-Type": upstream.headers.get("Content-Type") ?? "video/mp4",
+        "Cache-Control": "no-store, no-cache",
+      };
+      for (const h of ["Content-Range", "Content-Length", "Accept-Ranges"]) {
+        const v = upstream.headers.get(h);
+        if (v) responseHeaders[h] = v;
+      }
+      return new NextResponse(upstream.body, { status: upstream.status, headers: responseHeaders });
+    }
+
+    // YouTube source — resolve CDN URL via yt-dlp then proxy.
+    // PlayForClassPlayer and the student page both use an iframe embed for
+    // YouTube in online mode, so this path is not normally reached from the UI.
+    // Handled here for completeness and for any direct route access.
+    let streamUrl: string;
+    try {
+      const minimalState = {
+        lessonId,
+        status: "degraded_online_only" as const,
+        videoSource: "youtube" as const,
+        sourceUrl: sourceInfo.url,
+        localPath: null,
+        errorText: null,
+        attemptCount: 0,
+        progressPct: 0,
+        updatedAt: Date.now(),
+      };
+      const resolved = await getStreamableUrl(minimalState);
+      if (!resolved) return new NextResponse("Video source not configured.", { status: 404 });
+      streamUrl = resolved;
+    } catch (err) {
+      if (String(err).includes("yt-dlp not found")) {
+        return new NextResponse(
+          "YouTube proxy requires yt-dlp. Use the embedded player instead.",
+          { status: 503 }
+        );
+      }
+      return new NextResponse("Unable to resolve video stream.", { status: 502 });
+    }
+
+    const proxyHeaders: Record<string, string> = {};
+    const rangeHeader = req.headers.get("range");
+    if (rangeHeader) proxyHeaders["Range"] = rangeHeader;
+
+    let upstream: Response;
+    try {
+      upstream = await fetch(streamUrl, { headers: proxyHeaders });
+    } catch {
+      return new NextResponse("Failed to fetch video from source.", { status: 502 });
+    }
+
+    const responseHeaders: Record<string, string> = {
+      "Content-Type": upstream.headers.get("Content-Type") ?? "video/mp4",
+      "Cache-Control": "no-store, no-cache",
+    };
+    for (const h of ["Content-Range", "Content-Length", "Accept-Ranges"]) {
+      const v = upstream.headers.get(h);
+      if (v) responseHeaders[h] = v;
+    }
+    return new NextResponse(upstream.body, { status: upstream.status, headers: responseHeaders });
+  }
+
+  // ── Online proxy mode (offline build fallback, ?mode=online) ──────────────
   if (mode === "online") {
     const syncState = getVideoSyncState(lessonId);
     if (!syncState?.sourceUrl) {

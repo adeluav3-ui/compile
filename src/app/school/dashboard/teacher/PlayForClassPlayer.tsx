@@ -17,6 +17,7 @@ type Props = {
   classId: string;
   classSection: string;
   isLocalReady: boolean;          // true only when local encrypted file is ready
+  isOnlineMode?: boolean;         // true in online delivery mode (pilot)
   videoProvider?: string | null;  // "youtube" | "vdocipher" | null
   videoId?: string | null;        // YouTube video ID or provider ID
 };
@@ -26,6 +27,7 @@ export default function PlayForClassPlayer({
   classId,
   classSection,
   isLocalReady,
+  isOnlineMode = false,
   videoProvider,
   videoId,
 }: Props) {
@@ -218,10 +220,9 @@ export default function PlayForClassPlayer({
           {!isLocalReady && hasYoutube && (
             <p className="text-xs text-muted">
               Playing for <span className="font-semibold text-ink">{classSection}</span>
-              {" · "}
-              <span className="text-muted">
-                Local video not yet downloaded — showing source video.
-              </span>
+              {!isOnlineMode && (
+                <>{" · "}<span className="text-muted">Local video not yet downloaded — showing source video.</span></>
+              )}
             </p>
           )}
         </div>
