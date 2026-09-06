@@ -23,7 +23,14 @@ export default async function AdminDashboard() {
   const schoolId = session.schoolId;
 
   // School record
-  const [school] = await db.select().from(schools).where(eq(schools.id, schoolId));
+  let school: typeof schools.$inferSelect | undefined;
+  try {
+    const schoolResult = await db.select().from(schools).where(eq(schools.id, schoolId));
+    school = schoolResult[0];
+  } catch (err) {
+    console.error("[AdminDashboard] schools query failed:", err);
+    throw err;
+  }
 
   // All classes for this school
   const allClasses = await db
