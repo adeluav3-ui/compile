@@ -40,6 +40,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  if (!session.isReal && !session.isLocal) {
+    return NextResponse.json(
+      { error: "Student accounts can't be created in demo mode." },
+      { status: 403 }
+    );
+  }
+
   const body = await req.json().catch(() => null);
   const classId: string = body?.classId ?? "";
   const rows: ImportRow[] = Array.isArray(body?.rows) ? body.rows : [];
