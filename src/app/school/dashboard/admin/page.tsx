@@ -15,6 +15,7 @@ import { and, eq, sql } from "drizzle-orm";
 import Link from "next/link";
 import DashboardHeader from "@/components/school/DashboardHeader";
 import AddTeacherSection from "./AddTeacherSection";
+import TeacherList from "./TeacherList";
 
 export default async function AdminDashboard() {
   const session = await getSchoolSession();
@@ -45,7 +46,7 @@ export default async function AdminDashboard() {
     .innerJoin(profiles, eq(teacherAssignments.profileId, profiles.id))
     .where(eq(teacherAssignments.schoolId, schoolId));
 
-  // Group classes per teacher
+  // Group classes per teacher — include profileId for delete operations
   const teacherMap = new Map<string, { name: string; identifier: string; classIds: string[] }>();
   for (const row of teacherRows) {
     if (!teacherMap.has(row.profileId)) {
@@ -57,7 +58,10 @@ export default async function AdminDashboard() {
     }
     teacherMap.get(row.profileId)!.classIds.push(row.classId);
   }
-  const teachers = Array.from(teacherMap.values());
+  const teachers = Array.from(teacherMap.entries()).map(([profileId, data]) => ({
+    profileId,
+    ...data,
+  }));
 
   const teacherByClass = Object.fromEntries(
     teacherRows.map((r) => [r.classId, r.teacherName])
@@ -225,26 +229,10 @@ export default async function AdminDashboard() {
           <h2 className="mb-4 font-mono text-xs uppercase tracking-widest text-brass">
             Teachers ({teachers.length})
           </h2>
-          {teachers.length === 0 ? (
-            <p className="text-sm text-muted">No teachers added yet.</p>
-          ) : (
-            <div className="space-y-2">
-              {teachers.map((t, i) => (
-                <div
-                  key={i}
-                  className="flex flex-col gap-1 rounded-[3px] border border-line bg-surface px-5 py-3 sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <div>
-                    <span className="text-sm font-semibold text-navy-deep">{t.name}</span>
-                    <span className="ml-2 font-mono text-xs text-muted">{t.identifier}</span>
-                  </div>
-                  <div className="font-mono text-xs text-muted">
-                    {t.classIds.map((id) => classNameById[id] ?? id).join(", ")}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          <TeacherList
+            initialTeachers={teachers}
+            classNameById={classNameById}
+          />
         </section>
 
         {/* Add Teacher */}

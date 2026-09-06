@@ -24,6 +24,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Name and identifier are required." }, { status: 400 });
   }
 
+  if (classIds.length === 0) {
+    return NextResponse.json({ error: "At least one class must be assigned." }, { status: 400 });
+  }
+
   const schoolId = session.schoolId;
 
   // Validate classIds belong to this school (if provided)

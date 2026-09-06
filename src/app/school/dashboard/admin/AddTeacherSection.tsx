@@ -23,6 +23,10 @@ export default function AddTeacherSection({ classes }: { classes: ClassOption[] 
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (classes.length > 0 && selectedClassIds.length === 0) {
+      setResult({ ok: false, error: "Select at least one class to assign this teacher to." });
+      return;
+    }
     setLoading(true);
     setResult(null);
 
@@ -94,9 +98,15 @@ export default function AddTeacherSection({ classes }: { classes: ClassOption[] 
             />
           </div>
 
-          {classes.length > 0 && (
-            <div>
-              <label className="mb-1.5 block font-mono text-xs text-muted">Assign to class(es)</label>
+          <div>
+            <label className="mb-1.5 block font-mono text-xs text-muted">
+              Assign to class(es) <span className="text-[#B45309]">*</span>
+            </label>
+            {classes.length === 0 ? (
+              <p className="text-xs text-muted">
+                No classes set up yet — create a class before adding teachers.
+              </p>
+            ) : (
               <div className="flex flex-wrap gap-2">
                 {classes.map((cls) => (
                   <button
@@ -113,8 +123,8 @@ export default function AddTeacherSection({ classes }: { classes: ClassOption[] 
                   </button>
                 ))}
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
           {result && !result.ok && (
             <p className="rounded-[3px] bg-[#FEF2F2] px-3 py-2 font-mono text-xs text-[#991B1B]">
