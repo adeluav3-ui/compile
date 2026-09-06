@@ -31,11 +31,14 @@ export default async function TeacherDashboard({
   const session = await getSchoolSession();
   if (!session || session.role !== "teacher") redirect("/school/login");
 
-  // Load all DB assignments
-  const dbAssignments = await db
-    .select({ classId: teacherAssignments.classId })
-    .from(teacherAssignments)
-    .where(eq(teacherAssignments.profileId, session.profileId));
+  // Phase 1 — parallel: assignments (to know which classes) + resolve searchParams
+  const [dbAssignments, { classId: classIdParam }] = await Promise.all([
+    db
+      .select({ classId: teacherAssignments.classId })
+      .from(teacherAssignments)
+      .where(eq(teacherAssignments.profileId, session.profileId)),
+    searchParams,
+  ]);
 
   // Demo/local sessions have no DB assignments — fall back to session.classId
   const assignedClassIds: string[] =
@@ -53,36 +56,71 @@ export default async function TeacherDashboard({
     );
   }
 
-  const { classId: classIdParam } = await searchParams;
-
   const activeClassId =
     (classIdParam && assignedClassIds.includes(classIdParam) ? classIdParam : null) ??
     assignedClassIds[0];
 
-  // Load class info for all assigned classes (for the picker + active class header)
-  const allAssignedClasses = await db
-    .select({ id: classes.id, name: classes.name, level: classes.level, academicYear: classes.academicYear })
-    .from(classes)
-    .where(
-      assignedClassIds.length === 1
-        ? eq(classes.id, assignedClassIds[0])
-        : inArray(classes.id, assignedClassIds)
-    );
+  // Phase 2 — parallel: all remaining queries share no inter-dependencies
+  const studentProfiles = profiles;
+  const [allAssignedClasses, allLessons, releases, pendingQA, pendingSubmissions] =
+    await Promise.all([
+      db
+        .select({ id: classes.id, name: classes.name, level: classes.level, academicYear: classes.academicYear })
+        .from(classes)
+        .where(
+          assignedClassIds.length === 1
+            ? eq(classes.id, assignedClassIds[0])
+            : inArray(classes.id, assignedClassIds)
+        ),
+
+      // All lessons — no level filter; every class can access the full curriculum
+      db.select().from(lessons).orderBy(lessons.order),
+
+      db
+        .select({ lessonId: lessonReleases.lessonId })
+        .from(lessonReleases)
+        .where(eq(lessonReleases.classId, activeClassId)),
+
+      db
+        .select({
+          id: lessonQuestions.id,
+          questionText: lessonQuestions.questionText,
+          aiAnswer: lessonQuestions.aiAnswer,
+          status: lessonQuestions.status,
+          studentName: studentProfiles.fullName,
+        })
+        .from(lessonQuestions)
+        .innerJoin(studentProfiles, eq(lessonQuestions.studentId, studentProfiles.id))
+        .where(
+          and(
+            eq(lessonQuestions.classId, activeClassId),
+            eq(lessonQuestions.status, "ai_answered")
+          )
+        )
+        .orderBy(desc(lessonQuestions.createdAt)),
+
+      db
+        .select({
+          id: submissions.id,
+          type: submissions.type,
+          content: submissions.content,
+          submittedAt: submissions.submittedAt,
+          aiScore: submissions.aiScore,
+          aiFeedback: submissions.aiFeedback,
+          studentName: studentProfiles.fullName,
+        })
+        .from(submissions)
+        .innerJoin(studentProfiles, eq(submissions.studentId, studentProfiles.id))
+        .where(
+          and(
+            eq(submissions.classId, activeClassId),
+            eq(submissions.status, "ai_graded")
+          )
+        )
+        .orderBy(desc(submissions.submittedAt)),
+    ]);
 
   const cls = allAssignedClasses.find((c) => c.id === activeClassId) ?? null;
-
-  const allLessons = cls
-    ? await db
-        .select()
-        .from(lessons)
-        .where(eq(lessons.level, cls.level))
-        .orderBy(lessons.order)
-    : [];
-
-  const releases = await db
-    .select({ lessonId: lessonReleases.lessonId })
-    .from(lessonReleases)
-    .where(eq(lessonReleases.classId, activeClassId));
 
   const releasedIds = new Set(releases.map((r) => r.lessonId));
 
@@ -90,45 +128,6 @@ export default async function TeacherDashboard({
   const onlineMode = isOnlineDelivery();
   // In online mode this always returns {} — kept so offline mode works unchanged.
   const videoSyncStates = getVideoSyncStates(releasedLessonIds);
-
-  const studentProfiles = profiles;
-  const pendingQA = await db
-    .select({
-      id: lessonQuestions.id,
-      questionText: lessonQuestions.questionText,
-      aiAnswer: lessonQuestions.aiAnswer,
-      status: lessonQuestions.status,
-      studentName: studentProfiles.fullName,
-    })
-    .from(lessonQuestions)
-    .innerJoin(studentProfiles, eq(lessonQuestions.studentId, studentProfiles.id))
-    .where(
-      and(
-        eq(lessonQuestions.classId, activeClassId),
-        eq(lessonQuestions.status, "ai_answered")
-      )
-    )
-    .orderBy(desc(lessonQuestions.createdAt));
-
-  const pendingSubmissions = await db
-    .select({
-      id: submissions.id,
-      type: submissions.type,
-      content: submissions.content,
-      submittedAt: submissions.submittedAt,
-      aiScore: submissions.aiScore,
-      aiFeedback: submissions.aiFeedback,
-      studentName: studentProfiles.fullName,
-    })
-    .from(submissions)
-    .innerJoin(studentProfiles, eq(submissions.studentId, studentProfiles.id))
-    .where(
-      and(
-        eq(submissions.classId, activeClassId),
-        eq(submissions.status, "ai_graded")
-      )
-    )
-    .orderBy(desc(submissions.submittedAt));
 
   return (
     <div className="min-h-screen bg-paper">
@@ -173,7 +172,7 @@ export default async function TeacherDashboard({
         </div>
 
         {/* ── Class Status ── */}
-        <ClassStatusPanel teacherProfileId={session.profileId} />
+        <ClassStatusPanel classes={allAssignedClasses} />
 
         {/* ── Lessons ── */}
         <section>
@@ -278,8 +277,10 @@ export default async function TeacherDashboard({
           )}
         </section>
 
-        {/* ── Add Students ── */}
-        <AddStudentsSection classId={activeClassId} />
+        {/* ── Add Students (real/local sessions only — not available in demo) ── */}
+        {(session.isReal || session.isLocal) && (
+          <AddStudentsSection classId={activeClassId} />
+        )}
 
         {/* ── Submissions Review ── */}
         <section>

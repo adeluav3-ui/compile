@@ -1,13 +1,11 @@
 import { db } from "@/db";
 import {
-  classes,
   lessons,
   lessonReleases,
   submissions,
   assessments,
   assessmentResults,
   studentClasses,
-  teacherAssignments,
 } from "@/db/schema";
 import { eq, desc, count, and, ne, isNull, max, inArray } from "drizzle-orm";
 
@@ -32,7 +30,7 @@ function ProgressBar({ released, total }: { released: number; total: number }) {
   const pct = total > 0 ? Math.round((released / total) * 100) : 0;
   return (
     <div className="flex items-center gap-2">
-      <div className="h-1.5 w-20 flex-shrink-0 overflow-hidden rounded-full bg-line">
+      <div className="h-1.5 w-20 shrink-0 overflow-hidden rounded-full bg-line">
         <div className="h-full rounded-full bg-navy transition-all" style={{ width: `${pct}%` }} />
       </div>
       <span className="font-mono text-xs text-muted">{released}/{total}</span>
@@ -56,96 +54,173 @@ type ClassStat = {
   studentCount: number;
 };
 
-// ─── Per-class data fetch ─────────────────────────────────────────────────────
+type ClassInfo = { id: string; name: string; level: string };
 
-async function fetchClassStats(cls: { id: string; name: string; level: string }): Promise<ClassStat> {
+// ─── Bulk data fetch ──────────────────────────────────────────────────────────
+// One set of parallel queries covering all classes, instead of N×7 queries.
+
+async function fetchAllClassStats(classIds: string[], allClasses: ClassInfo[]): Promise<ClassStat[]> {
+  if (classIds.length === 0) return [];
+
   const [
     [totalRow],
-    [releasedRow],
-    [lastLessonRow],
-    [activeAssessmentRow],
-    [pendingSubRow],
-    [lastSubRow],
-    [studentRow],
+    releaseAggRows,
+    allReleaseRows,
+    allAssessmentRows,
+    pendingSubRows,
+    allSubRows,
+    studentCountRows,
   ] = await Promise.all([
-    db.select({ n: count() }).from(lessons).where(eq(lessons.level, cls.level as "JSS1" | "JSS2" | "JSS3" | "SSS1" | "SSS2" | "SSS3")),
+    // Total curriculum lessons — same for every class, no level filter
+    db.select({ n: count() }).from(lessons),
 
-    db.select({ n: count(), lastAt: max(lessonReleases.releasedAt) })
+    // Released count + latest release timestamp per class
+    db.select({
+      classId: lessonReleases.classId,
+      n: count(),
+      lastAt: max(lessonReleases.releasedAt),
+    })
       .from(lessonReleases)
-      .where(eq(lessonReleases.classId, cls.id)),
+      .where(inArray(lessonReleases.classId, classIds))
+      .groupBy(lessonReleases.classId),
 
-    db.select({ title: lessons.title, order: lessons.order, releasedAt: lessonReleases.releasedAt })
+    // All releases with lesson info — grouped in JS to find latest per class
+    db.select({
+      classId: lessonReleases.classId,
+      title: lessons.title,
+      order: lessons.order,
+      releasedAt: lessonReleases.releasedAt,
+    })
       .from(lessonReleases)
       .innerJoin(lessons, eq(lessonReleases.lessonId, lessons.id))
-      .where(eq(lessonReleases.classId, cls.id))
-      .orderBy(desc(lessonReleases.releasedAt))
-      .limit(1),
+      .where(inArray(lessonReleases.classId, classIds))
+      .orderBy(desc(lessonReleases.releasedAt)),
 
-    db.select({ id: assessments.id, type: assessments.type, status: assessments.status })
+    // Non-finalized assessments — first per class (by createdAt DESC) is the active one
+    db.select({
+      classId: assessments.classId,
+      type: assessments.type,
+      status: assessments.status,
+    })
       .from(assessments)
-      .where(and(eq(assessments.classId, cls.id), ne(assessments.status, "finalized")))
-      .orderBy(desc(assessments.createdAt))
-      .limit(1),
+      .where(and(
+        inArray(assessments.classId, classIds),
+        ne(assessments.status, "finalized"),
+      ))
+      .orderBy(desc(assessments.createdAt)),
 
-    db.select({ n: count() })
+    // AI-graded submission count per class
+    db.select({ classId: submissions.classId, n: count() })
       .from(submissions)
-      .where(and(eq(submissions.classId, cls.id), eq(submissions.status, "ai_graded"))),
+      .where(and(
+        inArray(submissions.classId, classIds),
+        eq(submissions.status, "ai_graded"),
+      ))
+      .groupBy(submissions.classId),
 
-    db.select({ submittedAt: submissions.submittedAt })
+    // All submissions ordered by date DESC — first per class is the latest
+    db.select({ classId: submissions.classId, submittedAt: submissions.submittedAt })
       .from(submissions)
-      .where(eq(submissions.classId, cls.id))
-      .orderBy(desc(submissions.submittedAt))
-      .limit(1),
+      .where(inArray(submissions.classId, classIds))
+      .orderBy(desc(submissions.submittedAt)),
 
-    db.select({ n: count() })
+    // Student count per class
+    db.select({ classId: studentClasses.classId, n: count() })
       .from(studentClasses)
-      .where(eq(studentClasses.classId, cls.id)),
+      .where(inArray(studentClasses.classId, classIds))
+      .groupBy(studentClasses.classId),
   ]);
 
-  // Pending practical scores on most recently finalized assessment
-  let pendingPracticalCount = 0;
-  if (!activeAssessmentRow) {
-    const [latestFinalized] = await db
-      .select({ id: assessments.id })
-      .from(assessments)
-      .where(and(eq(assessments.classId, cls.id), eq(assessments.status, "finalized")))
-      .orderBy(desc(assessments.createdAt))
-      .limit(1);
+  const totalLessons = totalRow?.n ?? 0;
 
-    if (latestFinalized) {
-      const [pr] = await db
-        .select({ n: count() })
-        .from(assessmentResults)
-        .where(and(
-          eq(assessmentResults.assessmentId, latestFinalized.id),
-          isNull(assessmentResults.practicalScore),
-        ));
-      pendingPracticalCount = pr?.n ?? 0;
+  // Group all results by classId
+  const releaseByClass = Object.fromEntries(releaseAggRows.map((r) => [r.classId, r]));
+
+  const lastLessonByClass: Record<string, { title: string; order: number; releasedAt: Date }> = {};
+  for (const row of allReleaseRows) {
+    if (!lastLessonByClass[row.classId]) {
+      lastLessonByClass[row.classId] = { title: row.title, order: row.order, releasedAt: new Date(row.releasedAt) };
     }
   }
 
-  const lastReleaseAt = releasedRow?.lastAt ? new Date(releasedRow.lastAt) : null;
-  const lastSubAt = lastSubRow?.submittedAt ? new Date(lastSubRow.submittedAt) : null;
-  const lastActivity =
-    lastReleaseAt && lastSubAt
-      ? (lastReleaseAt > lastSubAt ? lastReleaseAt : lastSubAt)
-      : lastReleaseAt ?? lastSubAt;
+  const activeAssessmentByClass: Record<string, { type: string; status: string }> = {};
+  for (const row of allAssessmentRows) {
+    if (!activeAssessmentByClass[row.classId]) {
+      activeAssessmentByClass[row.classId] = { type: row.type, status: row.status };
+    }
+  }
 
-  return {
-    classId: cls.id,
-    className: cls.name,
-    level: cls.level,
-    totalLessons: totalRow?.n ?? 0,
-    releasedCount: releasedRow?.n ?? 0,
-    lastLesson: lastLessonRow
-      ? { title: lastLessonRow.title, order: lastLessonRow.order, releasedAt: new Date(lastLessonRow.releasedAt) }
-      : null,
-    activeAssessment: activeAssessmentRow ?? null,
-    pendingPracticalCount,
-    pendingSubmissions: pendingSubRow?.n ?? 0,
-    lastActivity,
-    studentCount: studentRow?.n ?? 0,
-  };
+  const pendingSubByClass = Object.fromEntries(pendingSubRows.map((r) => [r.classId, r.n]));
+
+  const lastSubByClass: Record<string, Date> = {};
+  for (const row of allSubRows) {
+    if (!lastSubByClass[row.classId]) {
+      lastSubByClass[row.classId] = new Date(row.submittedAt);
+    }
+  }
+
+  const studentByClass = Object.fromEntries(studentCountRows.map((r) => [r.classId, r.n]));
+
+  // Pending practical scores — only for classes without an active assessment
+  const noActiveIds = classIds.filter((id) => !activeAssessmentByClass[id]);
+  const pendingPracticalByClass: Record<string, number> = {};
+
+  if (noActiveIds.length > 0) {
+    const finalizedRows = await db
+      .select({ classId: assessments.classId, id: assessments.id })
+      .from(assessments)
+      .where(and(
+        inArray(assessments.classId, noActiveIds),
+        eq(assessments.status, "finalized"),
+      ))
+      .orderBy(desc(assessments.createdAt));
+
+    const latestFinalizedByClass: Record<string, string> = {};
+    for (const row of finalizedRows) {
+      if (!latestFinalizedByClass[row.classId]) latestFinalizedByClass[row.classId] = row.id;
+    }
+
+    const finalizedIds = Object.values(latestFinalizedByClass);
+    if (finalizedIds.length > 0) {
+      const practicalRows = await db
+        .select({ assessmentId: assessmentResults.assessmentId, n: count() })
+        .from(assessmentResults)
+        .where(and(
+          inArray(assessmentResults.assessmentId, finalizedIds),
+          isNull(assessmentResults.practicalScore),
+        ))
+        .groupBy(assessmentResults.assessmentId);
+
+      const practicalByAssessment = Object.fromEntries(practicalRows.map((r) => [r.assessmentId, r.n]));
+      for (const [classId, assessmentId] of Object.entries(latestFinalizedByClass)) {
+        pendingPracticalByClass[classId] = practicalByAssessment[assessmentId] ?? 0;
+      }
+    }
+  }
+
+  return allClasses.map((cls) => {
+    const releaseAgg = releaseByClass[cls.id];
+    const lastReleaseAt = releaseAgg?.lastAt ? new Date(releaseAgg.lastAt) : null;
+    const lastSubAt = lastSubByClass[cls.id] ?? null;
+    const lastActivity =
+      lastReleaseAt && lastSubAt
+        ? lastReleaseAt > lastSubAt ? lastReleaseAt : lastSubAt
+        : lastReleaseAt ?? lastSubAt;
+
+    return {
+      classId: cls.id,
+      className: cls.name,
+      level: cls.level,
+      totalLessons,
+      releasedCount: releaseAgg?.n ?? 0,
+      lastLesson: lastLessonByClass[cls.id] ?? null,
+      activeAssessment: activeAssessmentByClass[cls.id] ?? null,
+      pendingPracticalCount: pendingPracticalByClass[cls.id] ?? 0,
+      pendingSubmissions: pendingSubByClass[cls.id] ?? 0,
+      lastActivity,
+      studentCount: studentByClass[cls.id] ?? 0,
+    };
+  });
 }
 
 // ─── Activity badge ───────────────────────────────────────────────────────────
@@ -155,21 +230,21 @@ function ActivityBadge({ stat }: { stat: ClassStat }) {
     const label = stat.activeAssessment.type === "midterm" ? "Midterm" : "Final Exam";
     const status = stat.activeAssessment.status.replace(/_/g, " ");
     return (
-      <span className="rounded-[2px] bg-brass/10 px-2 py-0.5 font-mono text-[10px] text-brass whitespace-nowrap">
+      <span className="rounded-xs bg-brass/10 px-2 py-0.5 font-mono text-[10px] text-brass whitespace-nowrap">
         {label} — {status}
       </span>
     );
   }
   if (stat.pendingPracticalCount > 0) {
     return (
-      <span className="rounded-[2px] bg-steel/10 px-2 py-0.5 font-mono text-[10px] text-steel whitespace-nowrap">
+      <span className="rounded-xs bg-steel/10 px-2 py-0.5 font-mono text-[10px] text-steel whitespace-nowrap">
         {stat.pendingPracticalCount} practical{stat.pendingPracticalCount !== 1 ? "s" : ""} to score
       </span>
     );
   }
   if (stat.pendingSubmissions > 0) {
     return (
-      <span className="rounded-[2px] bg-brass/10 px-2 py-0.5 font-mono text-[10px] text-brass whitespace-nowrap">
+      <span className="rounded-xs bg-brass/10 px-2 py-0.5 font-mono text-[10px] text-brass whitespace-nowrap">
         {stat.pendingSubmissions} submission{stat.pendingSubmissions !== 1 ? "s" : ""} to grade
       </span>
     );
@@ -271,22 +346,15 @@ function MultiClassTable({ stats }: { stats: ClassStat[] }) {
 
 // ─── Main export ──────────────────────────────────────────────────────────────
 
-export default async function ClassStatusPanel({ teacherProfileId }: { teacherProfileId: string }) {
-  const assignments = await db
-    .select({ classId: teacherAssignments.classId })
-    .from(teacherAssignments)
-    .where(eq(teacherAssignments.profileId, teacherProfileId));
+export default async function ClassStatusPanel({
+  classes: assignedClasses,
+}: {
+  classes: { id: string; name: string; level: string }[];
+}) {
+  if (assignedClasses.length === 0) return null;
 
-  if (assignments.length === 0) return null;
-
-  const classIds = assignments.map((a) => a.classId);
-
-  const allClasses = await db
-    .select({ id: classes.id, name: classes.name, level: classes.level })
-    .from(classes)
-    .where(classIds.length === 1 ? eq(classes.id, classIds[0]) : inArray(classes.id, classIds));
-
-  const stats = await Promise.all(allClasses.map(fetchClassStats));
+  const classIds = assignedClasses.map((c) => c.id);
+  const stats = await fetchAllClassStats(classIds, assignedClasses);
 
   stats.sort((a, b) => {
     if (!a.lastActivity && !b.lastActivity) return 0;
