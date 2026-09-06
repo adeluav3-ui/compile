@@ -120,6 +120,17 @@ Reference mockups (attached separately / already delivered): `compile-home.html`
 
 ---
 
+## Known limitations
+
+**YouTube video ID exposure in online delivery mode (pilot)**
+School Edition is currently running with `DELIVERY_MODE=online`. In this mode, lesson videos are served as YouTube iframe embeds. The YouTube video ID is visible in page source and the embed URL carries no session or subscription check — anyone who discovers the ID can watch the video on YouTube directly, bypassing the platform entirely.
+
+This is a deliberate, accepted trade-off for the initial pilot schools. It must be closed before scaling beyond the pilot by switching to VdoCipher (or equivalent) signed/expiring URLs, which is the architecture already specified for Individual Course. When that work is done, `DELIVERY_MODE=online` will route through the gated `/api/school/video/[lessonId]` proxy for all sources, and the iframe path will be removed.
+
+Relevant code: `PlayForClassPlayer.tsx` and `student/lesson/[id]/page.tsx` both have `KNOWN LIMITATION — PILOT ONLY` comments at the iframe render site.
+
+---
+
 ## Working conventions
 
 - Don't mark something as working without real, verifiable output — a claim that code "should work" is not sufficient; show the actual result (test output, screenshot, running instance).

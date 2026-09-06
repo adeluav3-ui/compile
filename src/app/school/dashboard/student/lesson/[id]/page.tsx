@@ -164,8 +164,15 @@ export default async function StudentLessonPage({
                 </video>
               )
             ) : isOnlineDelivery() && lesson.videoProvider === "youtube" && lesson.videoId ? (
-              /* Online delivery mode — YouTube embed. The raw CDN URL is never
-                 returned to the browser; only the nocookie embed URL is visible. */
+              /*
+               * KNOWN LIMITATION — PILOT ONLY.
+               * The YouTube video ID is visible in page source and the embed
+               * URL carries no session or subscription check — anyone who
+               * finds the ID can watch on YouTube directly. This is an
+               * accepted trade-off for the initial pilot schools.
+               * Must be replaced with VdoCipher (or equivalent) signed/expiring
+               * URLs before scaling beyond the pilot.
+               */
               <iframe
                 src={`https://www.youtube-nocookie.com/embed/${lesson.videoId}?modestbranding=1&rel=0&iv_load_policy=3`}
                 className="h-full w-full"
