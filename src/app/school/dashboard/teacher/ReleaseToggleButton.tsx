@@ -96,14 +96,7 @@ export default function ReleaseToggleButton({
   function renderStatusRow() {
     if (!released) return null;
 
-    // Cloud build — students stream over the internet
-    if (!isOfflineBuild) {
-      return (
-        <p className="font-mono text-xs text-muted">
-          Released — students can access this lesson online
-        </p>
-      );
-    }
+    if (!isOfflineBuild) return null;
 
     // Offline build states
     if (videoStatus === "ready") {
