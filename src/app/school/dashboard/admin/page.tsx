@@ -15,6 +15,7 @@ import { and, eq, sql } from "drizzle-orm";
 import Link from "next/link";
 import DashboardHeader from "@/components/school/DashboardHeader";
 import AddTeacherSection from "./AddTeacherSection";
+import AddClassSection from "./AddClassSection";
 import TeacherList from "./TeacherList";
 
 export default async function AdminDashboard() {
@@ -234,6 +235,9 @@ export default async function AdminDashboard() {
             classNameById={classNameById}
           />
         </section>
+
+        {/* Create Class */}
+        <AddClassSection />
 
         {/* Add Teacher */}
         <AddTeacherSection classes={allClasses.map((c) => ({ id: c.id, name: c.name }))} />
