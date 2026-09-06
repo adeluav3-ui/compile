@@ -119,7 +119,7 @@ export default async function CohortPage() {
               </div>
               <div className="text-muted">
                 &nbsp;&nbsp;<span className="text-steel">&quot;seats_left&quot;</span>:{" "}
-                <span className="text-brass">4</span>
+                <span className="text-brass">{seatsLeft}</span>
               </div>
               <div className="text-muted">{"}"}</div>
               <div className="mt-4 flex justify-between border-t border-line pt-4 text-[11px] text-muted">
