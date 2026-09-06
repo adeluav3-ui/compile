@@ -31,3 +31,9 @@ next-env.d.ts
 
 # claude code
 .claude/
+
+# School Edition offline test artefacts (local only)
+*.db
+*.db-shm
+*.db-wal
+/media/
