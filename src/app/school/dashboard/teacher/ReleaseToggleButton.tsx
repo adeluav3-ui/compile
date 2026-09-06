@@ -27,6 +27,7 @@ export default function ReleaseToggleButton({
 }) {
   const [released, setReleased] = useState(initialReleased);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [videoStatus, setVideoStatus] = useState<VideoStatus>(initialVideoStatus);
   const [progressPct, setProgressPct] = useState(initialProgressPct);
   const [showOnlinePlayer, setShowOnlinePlayer] = useState(false);
@@ -64,6 +65,7 @@ export default function ReleaseToggleButton({
   async function toggle() {
     setLoading(true);
     setShowOnlinePlayer(false);
+    setError(null);
     try {
       const res = await fetch(`/api/school/lessons/${lessonId}/release`, {
         method: "POST",
@@ -71,6 +73,10 @@ export default function ReleaseToggleButton({
         body: JSON.stringify({ classId }),
       });
       const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Something went wrong — try again.");
+        return;
+      }
       setReleased(data.released);
       if (data.released) {
         setVideoStatus((data.videoStatus as VideoStatus) ?? null);
@@ -79,6 +85,8 @@ export default function ReleaseToggleButton({
         setVideoStatus(null);
         setProgressPct(0);
       }
+    } catch {
+      setError("Network error — check your connection and try again.");
     } finally {
       setLoading(false);
     }
@@ -88,11 +96,11 @@ export default function ReleaseToggleButton({
   function renderStatusRow() {
     if (!released) return null;
 
-    // Cloud build — no local downloads
+    // Cloud build — students stream over the internet
     if (!isOfflineBuild) {
       return (
         <p className="font-mono text-xs text-muted">
-          Streaming online · offline copy syncs in School Edition
+          Released — students can access this lesson online
         </p>
       );
     }
@@ -191,6 +199,11 @@ export default function ReleaseToggleButton({
           </button>
         )}
       </div>
+
+      {/* ── Error ── */}
+      {error && (
+        <p className="font-mono text-xs text-[#B45309]">{error}</p>
+      )}
 
       {/* ── Status / progress row (always visible when released) ── */}
       {renderStatusRow()}

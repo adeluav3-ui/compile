@@ -391,7 +391,7 @@ export const lessonReleases = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     lessonId: uuid("lesson_id").notNull().references(() => lessons.id, { onDelete: "cascade" }),
     classId: uuid("class_id").notNull().references(() => classes.id, { onDelete: "cascade" }),
-    releasedBy: uuid("released_by").notNull().references(() => profiles.id),
+    releasedBy: uuid("released_by").references(() => profiles.id),
     releasedAt: timestamp("released_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [unique().on(t.lessonId, t.classId)]

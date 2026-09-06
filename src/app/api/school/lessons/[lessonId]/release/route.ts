@@ -31,16 +31,21 @@ export async function POST(
     return NextResponse.json({ released: false });
   }
 
-  // Create the release record immediately — always succeeds, even offline
-  await db.insert(lessonReleases).values({
-    lessonId,
-    classId,
-    releasedBy: session.profileId,
-  });
+  // releasedBy is nullable — demo sessions have no real profile row in the DB.
+  const releasedBy = session.isReal || session.isLocal ? session.profileId : null;
+
+  try {
+    await db.insert(lessonReleases).values({
+      lessonId,
+      classId,
+      releasedBy,
+    });
+  } catch (err) {
+    console.error("[release] insert failed:", err);
+    return NextResponse.json({ error: "Could not release lesson." }, { status: 500 });
+  }
 
   // In offline School Edition builds, ensure the video file is synced locally.
-  // ALL lesson types (including YouTube-sourced) go through the same pipeline:
-  // download → encrypt → store. No special cases.
   let videoStatus: string | null = null;
 
   if (process.env.LOCAL_DB_PATH) {
