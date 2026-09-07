@@ -6,31 +6,28 @@ function formatTime(totalSeconds: number): string {
   const h = Math.floor(totalSeconds / 3600);
   const m = Math.floor((totalSeconds % 3600) / 60);
   const s = Math.floor(totalSeconds % 60);
-  if (h > 0) {
-    return `${h}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
-  }
+  if (h > 0) return `${h}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
 type Props = {
   lessonId: string;
-  classId: string;
-  classSection: string;
-  isLocalReady: boolean;          // true only when local encrypted file is ready
-  isOnlineMode?: boolean;         // true in online delivery mode (pilot)
-  videoProvider?: string | null;  // "youtube" | "vdocipher" | null
-  videoId?: string | null;        // YouTube video ID or provider ID
+  releasedClasses: { id: string; name: string }[];
+  isLocalReady: boolean;
+  isOnlineMode?: boolean;
+  videoProvider?: string | null;
+  videoId?: string | null;
 };
 
 export default function PlayForClassPlayer({
   lessonId,
-  classId,
-  classSection,
+  releasedClasses,
   isLocalReady,
   isOnlineMode = false,
   videoProvider,
   videoId,
 }: Props) {
+  const [selectedClassId, setSelectedClassId] = useState(releasedClasses[0]?.id ?? "");
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [resumeFrom, setResumeFrom] = useState<number>(0);
@@ -39,6 +36,8 @@ export default function PlayForClassPlayer({
   const lastSavedPositionRef = useRef<number>(0);
   const didSeekRef = useRef<boolean>(false);
 
+  const selectedClass = releasedClasses.find((c) => c.id === selectedClassId) ?? releasedClasses[0];
+
   const saveProgress = useCallback(
     async (positionSeconds: number) => {
       lastSavedPositionRef.current = positionSeconds;
@@ -46,13 +45,13 @@ export default function PlayForClassPlayer({
         await fetch(`/api/school/lessons/${lessonId}/class-progress`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ classId, lastPositionSeconds: Math.floor(positionSeconds) }),
+          body: JSON.stringify({ classId: selectedClassId, lastPositionSeconds: Math.floor(positionSeconds) }),
         });
       } catch {
-        // Best-effort — playback continues regardless of save failure
+        // Best-effort
       }
     },
-    [lessonId, classId]
+    [lessonId, selectedClassId]
   );
 
   async function open() {
@@ -60,20 +59,15 @@ export default function PlayForClassPlayer({
     didSeekRef.current = false;
     lastSavedPositionRef.current = 0;
 
-    // Progress tracking only applies to the local video player (not YouTube embed)
     let savedPosition = 0;
-    if (isLocalReady) {
+    if (isLocalReady && selectedClassId) {
       try {
-        const res = await fetch(
-          `/api/school/lessons/${lessonId}/class-progress?classId=${classId}`
-        );
+        const res = await fetch(`/api/school/lessons/${lessonId}/class-progress?classId=${selectedClassId}`);
         if (res.ok) {
           const data = (await res.json()) as { lastPositionSeconds?: number };
           savedPosition = data.lastPositionSeconds ?? 0;
         }
-      } catch {
-        // Fall through — start from 0
-      }
+      } catch { /* start from 0 */ }
     }
 
     setResumeFrom(savedPosition);
@@ -84,21 +78,21 @@ export default function PlayForClassPlayer({
   function close() {
     const video = videoRef.current;
     if (video) {
-      if (!video.paused) {
-        video.pause(); // triggers onPause which saves position
-      } else {
-        void saveProgress(video.currentTime);
-      }
+      if (!video.paused) video.pause();
+      else void saveProgress(video.currentTime);
     }
     setIsOpen(false);
   }
 
   function handleToggle() {
-    if (isOpen) {
-      close();
-    } else {
-      void open();
-    }
+    if (isOpen) close();
+    else void open();
+  }
+
+  function handleClassChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    if (isOpen) close();
+    setSelectedClassId(e.target.value);
+    setResumeFrom(0);
   }
 
   function handleLoadedMetadata() {
@@ -111,9 +105,7 @@ export default function PlayForClassPlayer({
   function handleTimeUpdate() {
     const video = videoRef.current;
     if (!video) return;
-    if (video.currentTime - lastSavedPositionRef.current >= 10) {
-      void saveProgress(video.currentTime);
-    }
+    if (video.currentTime - lastSavedPositionRef.current >= 10) void saveProgress(video.currentTime);
   }
 
   function handlePauseOrEnd() {
@@ -127,29 +119,37 @@ export default function PlayForClassPlayer({
     lastSavedPositionRef.current = 0;
     didSeekRef.current = true;
     const video = videoRef.current;
-    if (video) {
-      video.currentTime = 0;
-      void video.play().catch(() => {});
-    }
+    if (video) { video.currentTime = 0; void video.play().catch(() => {}); }
   }
+
+  if (releasedClasses.length === 0) return null;
 
   const hasYoutube = videoProvider === "youtube" && !!videoId;
 
   return (
     <div className="border-t border-line">
-      <button
-        onClick={handleToggle}
-        disabled={loading}
-        className="flex w-full items-center gap-2 px-5 py-2.5 text-left disabled:opacity-60"
-      >
-        <span className="font-mono text-xs text-navy transition-colors hover:text-navy-deep">
-          {loading
-            ? "Loading…"
-            : isOpen
-              ? "▲ Close class player"
-              : "▼ Play for Class"}
-        </span>
-      </button>
+      <div className="flex items-center gap-3 px-5 py-2.5">
+        <button
+          onClick={handleToggle}
+          disabled={loading}
+          className="font-mono text-xs text-navy transition-colors hover:text-navy-deep disabled:opacity-60"
+        >
+          {loading ? "Loading…" : isOpen ? "▲ Close class player" : "▼ Play for Class"}
+        </button>
+
+        {/* Class selector — shown when not playing, and multiple classes are released */}
+        {!isOpen && releasedClasses.length > 1 && (
+          <select
+            value={selectedClassId}
+            onChange={handleClassChange}
+            className="rounded-[3px] border border-line bg-paper px-2 py-1 font-mono text-xs text-ink focus:border-navy focus:outline-none"
+          >
+            {releasedClasses.map((cls) => (
+              <option key={cls.id} value={cls.id}>{cls.name}</option>
+            ))}
+          </select>
+        )}
+      </div>
 
       {isOpen && (
         <div className="space-y-3 px-5 pb-5">
@@ -158,7 +158,6 @@ export default function PlayForClassPlayer({
             style={{ aspectRatio: "16/9" }}
           >
             {isLocalReady ? (
-              /* Local encrypted file — decrypt-and-stream via the video route */
               <video
                 ref={videoRef}
                 className="h-full w-full"
@@ -188,11 +187,8 @@ export default function PlayForClassPlayer({
                 title="Lesson video"
               />
             ) : (
-              /* No source at all */
               <div className="flex h-full items-center justify-center">
-                <p className="text-center text-sm text-muted">
-                  Video not yet available for this lesson.
-                </p>
+                <p className="text-center text-sm text-muted">Video not yet available for this lesson.</p>
               </div>
             )}
           </div>
@@ -203,16 +199,14 @@ export default function PlayForClassPlayer({
                 {resumeFrom > 0 ? (
                   <>
                     Resumed from{" "}
-                    <span className="font-mono font-semibold text-ink">
-                      {formatTime(resumeFrom)}
-                    </span>{" "}
-                    for{" "}
-                    <span className="font-semibold text-ink">{classSection}</span>
+                    <span className="font-mono font-semibold text-ink">{formatTime(resumeFrom)}</span>
+                    {" "}for{" "}
+                    <span className="font-semibold text-ink">{selectedClass?.name}</span>
                   </>
                 ) : (
                   <>
                     Playing for{" "}
-                    <span className="font-semibold text-ink">{classSection}</span>
+                    <span className="font-semibold text-ink">{selectedClass?.name}</span>
                   </>
                 )}
               </p>
@@ -227,7 +221,7 @@ export default function PlayForClassPlayer({
 
           {!isLocalReady && hasYoutube && (
             <p className="text-xs text-muted">
-              Playing for <span className="font-semibold text-ink">{classSection}</span>
+              Playing for <span className="font-semibold text-ink">{selectedClass?.name}</span>
               {!isOnlineMode && (
                 <>{" · "}<span className="text-muted">Local video not yet downloaded — showing source video.</span></>
               )}

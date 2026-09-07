@@ -23,22 +23,15 @@ import AddStudentsSection from "./AddStudentsSection";
 import { getVideoSyncStates } from "@/lib/video-sync";
 import { isOnlineDelivery } from "@/lib/delivery-mode";
 
-export default async function TeacherDashboard({
-  searchParams,
-}: {
-  searchParams: Promise<{ classId?: string }>;
-}) {
+export default async function TeacherDashboard() {
   const session = await getSchoolSession();
   if (!session || session.role !== "teacher") redirect("/school/login");
 
-  // Phase 1 — parallel: assignments (to know which classes) + resolve searchParams
-  const [dbAssignments, { classId: classIdParam }] = await Promise.all([
-    db
-      .select({ classId: teacherAssignments.classId })
-      .from(teacherAssignments)
-      .where(eq(teacherAssignments.profileId, session.profileId)),
-    searchParams,
-  ]);
+  // Phase 1 — load assignments to know which classes this teacher has
+  const dbAssignments = await db
+    .select({ classId: teacherAssignments.classId })
+    .from(teacherAssignments)
+    .where(eq(teacherAssignments.profileId, session.profileId));
 
   // Demo/local sessions have no DB assignments — fall back to session.classId
   const assignedClassIds: string[] =
@@ -56,30 +49,42 @@ export default async function TeacherDashboard({
     );
   }
 
-  const activeClassId =
-    (classIdParam && assignedClassIds.includes(classIdParam) ? classIdParam : null) ??
-    assignedClassIds[0];
+  const classFilter =
+    assignedClassIds.length === 1
+      ? eq(classes.id, assignedClassIds[0])
+      : inArray(classes.id, assignedClassIds);
 
-  // Phase 2 — parallel: all remaining queries share no inter-dependencies
+  const releaseFilter =
+    assignedClassIds.length === 1
+      ? eq(lessonReleases.classId, assignedClassIds[0])
+      : inArray(lessonReleases.classId, assignedClassIds);
+
+  const qaFilter =
+    assignedClassIds.length === 1
+      ? eq(lessonQuestions.classId, assignedClassIds[0])
+      : inArray(lessonQuestions.classId, assignedClassIds);
+
+  const subFilter =
+    assignedClassIds.length === 1
+      ? eq(submissions.classId, assignedClassIds[0])
+      : inArray(submissions.classId, assignedClassIds);
+
+  // Phase 2 — all remaining queries in parallel
   const studentProfiles = profiles;
   const [allAssignedClasses, allLessons, releases, pendingQA, pendingSubmissions] =
     await Promise.all([
       db
         .select({ id: classes.id, name: classes.name, level: classes.level, academicYear: classes.academicYear })
         .from(classes)
-        .where(
-          assignedClassIds.length === 1
-            ? eq(classes.id, assignedClassIds[0])
-            : inArray(classes.id, assignedClassIds)
-        ),
+        .where(classFilter),
 
-      // All lessons — no level filter; every class can access the full curriculum
+      // All lessons — no level filter; release control is per class
       db.select().from(lessons).orderBy(lessons.order),
 
       db
-        .select({ lessonId: lessonReleases.lessonId })
+        .select({ lessonId: lessonReleases.lessonId, classId: lessonReleases.classId })
         .from(lessonReleases)
-        .where(eq(lessonReleases.classId, activeClassId)),
+        .where(releaseFilter),
 
       db
         .select({
@@ -88,15 +93,12 @@ export default async function TeacherDashboard({
           aiAnswer: lessonQuestions.aiAnswer,
           status: lessonQuestions.status,
           studentName: studentProfiles.fullName,
+          className: classes.name,
         })
         .from(lessonQuestions)
         .innerJoin(studentProfiles, eq(lessonQuestions.studentId, studentProfiles.id))
-        .where(
-          and(
-            eq(lessonQuestions.classId, activeClassId),
-            eq(lessonQuestions.status, "ai_answered")
-          )
-        )
+        .innerJoin(classes, eq(lessonQuestions.classId, classes.id))
+        .where(and(qaFilter, eq(lessonQuestions.status, "ai_answered")))
         .orderBy(desc(lessonQuestions.createdAt)),
 
       db
@@ -108,23 +110,24 @@ export default async function TeacherDashboard({
           aiScore: submissions.aiScore,
           aiFeedback: submissions.aiFeedback,
           studentName: studentProfiles.fullName,
+          className: classes.name,
         })
         .from(submissions)
         .innerJoin(studentProfiles, eq(submissions.studentId, studentProfiles.id))
-        .where(
-          and(
-            eq(submissions.classId, activeClassId),
-            eq(submissions.status, "ai_graded")
-          )
-        )
+        .innerJoin(classes, eq(submissions.classId, classes.id))
+        .where(and(subFilter, eq(submissions.status, "ai_graded")))
         .orderBy(desc(submissions.submittedAt)),
     ]);
 
-  const cls = allAssignedClasses.find((c) => c.id === activeClassId) ?? null;
+  // Build per-lesson release map: lessonId → classIds that have it released
+  const releasedClassIdsByLesson = new Map<string, string[]>();
+  for (const r of releases) {
+    const arr = releasedClassIdsByLesson.get(r.lessonId) ?? [];
+    arr.push(r.classId);
+    releasedClassIdsByLesson.set(r.lessonId, arr);
+  }
 
-  const releasedIds = new Set(releases.map((r) => r.lessonId));
-
-  const releasedLessonIds = allLessons.filter((l) => releasedIds.has(l.id)).map((l) => l.id);
+  const releasedLessonIds = [...releasedClassIdsByLesson.keys()];
   const onlineMode = isOnlineDelivery();
   // In online mode this always returns {} — kept so offline mode works unchanged.
   const videoSyncStates = getVideoSyncStates(releasedLessonIds);
@@ -135,32 +138,13 @@ export default async function TeacherDashboard({
 
       <main className="mx-auto max-w-4xl space-y-10 px-6 py-8">
 
-        {/* ── Class picker (only shown when teacher has multiple classes) ── */}
-        {allAssignedClasses.length > 1 && (
-          <div className="flex gap-1 border-b border-line">
-            {allAssignedClasses.map((c) => (
-              <Link
-                key={c.id}
-                href={`/school/dashboard/teacher?classId=${c.id}`}
-                className={`rounded-t-[3px] px-4 py-2 font-mono text-xs transition-colors ${
-                  c.id === activeClassId
-                    ? "border border-b-0 border-line bg-surface text-navy-deep"
-                    : "text-muted hover:text-navy"
-                }`}
-              >
-                {c.name}
-              </Link>
-            ))}
-          </div>
-        )}
-
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="font-serif text-2xl font-semibold text-navy-deep">
-              {cls?.name ?? "Demo Class"}
+              {session.name}
             </h1>
             <p className="mt-1 text-sm text-muted">
-              {cls ? `${cls.level} · ${cls.academicYear}` : "Demo session"}
+              {allAssignedClasses.length} class{allAssignedClasses.length !== 1 ? "es" : ""} assigned
             </p>
           </div>
           <Link
@@ -171,7 +155,7 @@ export default async function TeacherDashboard({
           </Link>
         </div>
 
-        {/* ── Class Status ── */}
+        {/* ── Class Status (all classes) ── */}
         <ClassStatusPanel classes={allAssignedClasses} />
 
         {/* ── Lessons ── */}
@@ -180,67 +164,72 @@ export default async function TeacherDashboard({
             Lessons — Release Control
           </h2>
           {allLessons.length === 0 ? (
-            <p className="text-sm text-muted">No lessons available for this class level.</p>
+            <p className="text-sm text-muted">No lessons in the curriculum yet.</p>
           ) : (
             <div className="space-y-2">
-              {allLessons.map((lesson) => (
-                <div
-                  key={lesson.id}
-                  className="rounded-[3px] border border-line bg-surface"
-                >
-                  <div className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <div className="text-sm font-semibold text-navy-deep">
-                        {lesson.order}. {lesson.title}
+              {allLessons.map((lesson) => {
+                const lessonReleasedClassIds = releasedClassIdsByLesson.get(lesson.id) ?? [];
+                const lessonReleasedClasses = allAssignedClasses.filter((c) =>
+                  lessonReleasedClassIds.includes(c.id)
+                );
+
+                return (
+                  <div key={lesson.id} className="rounded-[3px] border border-line bg-surface">
+                    <div className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <div className="text-sm font-semibold text-navy-deep">
+                          {lesson.order}. {lesson.title}
+                        </div>
+                        {lesson.description && (
+                          <div className="mt-0.5 max-w-md text-xs text-muted">{lesson.description}</div>
+                        )}
                       </div>
-                      {lesson.description && (
-                        <div className="mt-0.5 max-w-md text-xs text-muted">{lesson.description}</div>
-                      )}
+                      <div className="shrink-0 sm:max-w-xs">
+                        <ReleaseToggleButton
+                          lessonId={lesson.id}
+                          classes={allAssignedClasses}
+                          initialReleasedClassIds={lessonReleasedClassIds}
+                          initialVideoStatus={
+                            onlineMode ? null :
+                            (videoSyncStates[lesson.id]?.status ?? null) as
+                              | "pending" | "downloading" | "ready" | "error" | null
+                          }
+                          initialProgressPct={onlineMode ? 0 : (videoSyncStates[lesson.id]?.progressPct ?? 0)}
+                          isOfflineBuild={!onlineMode}
+                        />
+                      </div>
                     </div>
-                    <div className="shrink-0">
-                      <ReleaseToggleButton
+
+                    {lessonReleasedClasses.length > 0 && (
+                      <PlayForClassPlayer
                         lessonId={lesson.id}
-                        classId={activeClassId}
-                        initialReleased={releasedIds.has(lesson.id)}
-                        initialVideoStatus={
-                          onlineMode ? null :
-                          (videoSyncStates[lesson.id]?.status ?? null) as
-                            | "pending" | "downloading" | "ready" | "error" | null
-                        }
-                        initialProgressPct={onlineMode ? 0 : (videoSyncStates[lesson.id]?.progressPct ?? 0)}
-                        isOfflineBuild={!onlineMode}
+                        releasedClasses={lessonReleasedClasses}
+                        isLocalReady={!onlineMode && videoSyncStates[lesson.id]?.status === "ready"}
+                        isOnlineMode={onlineMode}
+                        videoProvider={lesson.videoProvider}
+                        videoId={lesson.videoId}
                       />
-                    </div>
-                  </div>
-                  {releasedIds.has(lesson.id) && (
-                    <PlayForClassPlayer
-                      lessonId={lesson.id}
-                      classId={activeClassId}
-                      classSection={cls?.name ?? "Demo Class"}
-                      isLocalReady={!onlineMode && videoSyncStates[lesson.id]?.status === "ready"}
-                      isOnlineMode={onlineMode}
-                      videoProvider={lesson.videoProvider}
-                      videoId={lesson.videoId}
+                    )}
+
+                    <TeacherLessonPreview
+                      lesson={{
+                        id: lesson.id,
+                        title: lesson.title,
+                        description: lesson.description ?? null,
+                        videoId: lesson.videoId ?? null,
+                        videoProvider: lesson.videoProvider ?? null,
+                        order: lesson.order,
+                        notes: lesson.notes ?? null,
+                      }}
                     />
-                  )}
-                  <TeacherLessonPreview
-                    lesson={{
-                      id: lesson.id,
-                      title: lesson.title,
-                      description: lesson.description ?? null,
-                      videoId: lesson.videoId ?? null,
-                      videoProvider: lesson.videoProvider ?? null,
-                      order: lesson.order,
-                      notes: lesson.notes ?? null,
-                    }}
-                  />
-                </div>
-              ))}
+                  </div>
+                );
+              })}
             </div>
           )}
         </section>
 
-        {/* ── Q&A Review ── */}
+        {/* ── Q&A Review (all classes) ── */}
         <section>
           <h2 className="mb-4 font-mono text-xs uppercase tracking-widest text-brass">
             Q&A — Needs Your Reply ({pendingQA.length})
@@ -251,13 +240,13 @@ export default async function TeacherDashboard({
             <div className="space-y-4">
               {pendingQA.map((q) => (
                 <div key={q.id} className="rounded-[3px] border border-line bg-surface p-5">
-                  <div className="mb-3">
+                  <div className="mb-3 flex flex-wrap items-baseline gap-2">
                     <span className="font-semibold text-sm text-navy-deep">
                       {q.studentName ?? "Student"}
                     </span>
-                    <span className="ml-2 font-mono text-xs text-muted">asked:</span>
-                    <p className="mt-1 text-sm text-ink">{q.questionText}</p>
+                    <span className="font-mono text-xs text-muted">asked · {q.className}</span>
                   </div>
+                  <p className="mb-4 text-sm text-ink">{q.questionText}</p>
                   {q.aiAnswer && (
                     <div className="mb-4 rounded bg-paper p-3">
                       <span className="font-mono text-xs text-brass font-semibold">AI answer</span>
@@ -277,12 +266,12 @@ export default async function TeacherDashboard({
           )}
         </section>
 
-        {/* ── Add Students (real/local sessions only — not available in demo) ── */}
+        {/* ── Add Students (real/local sessions only) ── */}
         {(session.isReal || session.isLocal) && (
-          <AddStudentsSection classId={activeClassId} />
+          <AddStudentsSection classes={allAssignedClasses} />
         )}
 
-        {/* ── Submissions Review ── */}
+        {/* ── Submissions Review (all classes) ── */}
         <section>
           <h2 className="mb-4 font-mono text-xs uppercase tracking-widest text-brass">
             Review Queue — AI Graded ({pendingSubmissions.length})
@@ -295,12 +284,14 @@ export default async function TeacherDashboard({
                 <div key={sub.id} className="rounded-[3px] border border-line bg-surface p-5">
                   <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
                     <div>
-                      <span className="font-semibold text-sm text-navy-deep">
-                        {sub.studentName ?? "Student"}
-                      </span>
-                      <span className="ml-2 font-mono text-xs uppercase text-muted">
-                        · {sub.type}
-                      </span>
+                      <div className="flex flex-wrap items-baseline gap-2">
+                        <span className="font-semibold text-sm text-navy-deep">
+                          {sub.studentName ?? "Student"}
+                        </span>
+                        <span className="font-mono text-xs uppercase text-muted">
+                          {sub.type} · {sub.className}
+                        </span>
+                      </div>
                       <p className="mt-0.5 text-xs text-muted">
                         Submitted {new Date(sub.submittedAt).toLocaleDateString("en-GB")}
                       </p>

@@ -13,7 +13,12 @@ interface ImportFailure {
   error: string;
 }
 
-export default function AddStudentsSection({ classId }: { classId: string }) {
+export default function AddStudentsSection({
+  classes,
+}: {
+  classes: { id: string; name: string }[];
+}) {
+  const [selectedClassId, setSelectedClassId] = useState(classes[0]?.id ?? "");
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const [created, setCreated] = useState<ImportResult[]>([]);
@@ -26,12 +31,8 @@ export default function AddStudentsSection({ classId }: { classId: string }) {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (ev) => {
-      const content = ev.target?.result as string;
-      setText(content);
-    };
+    reader.onload = (ev) => setText(ev.target?.result as string);
     reader.readAsText(file);
-    // Reset so the same file can be re-selected if needed
     e.target.value = "";
   }
 
@@ -41,6 +42,11 @@ export default function AddStudentsSection({ classId }: { classId: string }) {
     setCreated([]);
     setFailed([]);
     setDone(false);
+
+    if (!selectedClassId) {
+      setError("Select a class first.");
+      return;
+    }
 
     const rows = text
       .split(/\r?\n/)
@@ -57,7 +63,7 @@ export default function AddStudentsSection({ classId }: { classId: string }) {
     const res = await fetch("/api/school/teacher/students/bulk", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ classId, rows }),
+      body: JSON.stringify({ classId: selectedClassId, rows }),
     });
 
     const data = await res.json();
@@ -69,9 +75,10 @@ export default function AddStudentsSection({ classId }: { classId: string }) {
       setDone(true);
       if ((data.created ?? []).length > 0) setText("");
     }
-
     setLoading(false);
   }
+
+  const selectedClass = classes.find((c) => c.id === selectedClassId);
 
   return (
     <section>
@@ -79,20 +86,49 @@ export default function AddStudentsSection({ classId }: { classId: string }) {
         Add Students
       </h2>
       <div className="rounded-[3px] border border-line bg-surface px-5 py-5">
-        <p className="mb-3 text-sm text-muted">
-          Paste student names — one per line. Usernames and passwords are auto-generated.
-        </p>
-
         <form onSubmit={handleImport} className="space-y-4">
-          <textarea
-            required
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            disabled={loading}
-            rows={8}
-            placeholder={"Chidi Okeke\nAmaka Eze\nEmeka Nwosu"}
-            className="w-full rounded-[3px] border border-line bg-paper px-3 py-2.5 text-sm text-ink placeholder:text-muted focus:border-navy focus:outline-none disabled:opacity-60"
-          />
+          {/* Class picker */}
+          <div>
+            <label className="mb-1.5 block font-mono text-xs text-muted">Add to class</label>
+            {classes.length === 0 ? (
+              <p className="text-sm text-muted">No classes assigned to your account.</p>
+            ) : classes.length === 1 ? (
+              <p className="text-sm font-semibold text-navy-deep">{classes[0].name}</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {classes.map((cls) => (
+                  <button
+                    key={cls.id}
+                    type="button"
+                    onClick={() => { setSelectedClassId(cls.id); setDone(false); }}
+                    disabled={loading}
+                    className={`rounded-[3px] px-3 py-1.5 font-mono text-xs transition-colors ${
+                      cls.id === selectedClassId
+                        ? "bg-navy text-surface"
+                        : "border border-line bg-paper text-muted hover:border-navy hover:text-navy"
+                    }`}
+                  >
+                    {cls.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label className="mb-1.5 block font-mono text-xs text-muted">
+              Student names{selectedClass ? ` — one per line, added to ${selectedClass.name}` : " — one per line"}
+            </label>
+            <textarea
+              required
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              disabled={loading || !selectedClassId}
+              rows={8}
+              placeholder={"Chidi Okeke\nAmaka Eze\nEmeka Nwosu"}
+              className="w-full rounded-[3px] border border-line bg-paper px-3 py-2.5 text-sm text-ink placeholder:text-muted focus:border-navy focus:outline-none disabled:opacity-60"
+            />
+          </div>
 
           {error && (
             <p className="rounded-[3px] bg-[#FEF2F2] px-3 py-2 font-mono text-xs text-[#991B1B]">
@@ -103,7 +139,7 @@ export default function AddStudentsSection({ classId }: { classId: string }) {
           <div className="flex flex-wrap items-center gap-3">
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !selectedClassId}
               className="rounded-[3px] bg-navy px-5 py-2.5 font-mono text-xs text-surface transition-colors hover:bg-navy-deep disabled:opacity-50"
             >
               {loading ? "Creating accounts…" : "Create accounts →"}
@@ -114,7 +150,7 @@ export default function AddStudentsSection({ classId }: { classId: string }) {
             <button
               type="button"
               onClick={() => fileRef.current?.click()}
-              disabled={loading}
+              disabled={loading || !selectedClassId}
               className="rounded-[3px] border border-line bg-paper px-4 py-2.5 font-mono text-xs text-muted transition-colors hover:border-navy hover:text-navy disabled:opacity-50"
             >
               Upload a text file
@@ -134,7 +170,7 @@ export default function AddStudentsSection({ classId }: { classId: string }) {
             {created.length > 0 && (
               <div>
                 <p className="mb-2 font-mono text-xs font-semibold text-navy-deep">
-                  Created ({created.length})
+                  Created ({created.length}) — added to {selectedClass?.name}
                 </p>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
