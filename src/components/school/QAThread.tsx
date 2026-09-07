@@ -30,6 +30,7 @@ export default function QAThread({
   const [items, setItems] = useState<QAItem[]>(initialItems);
   const [question, setQuestion] = useState("");
   const [posting, setPosting] = useState(false);
+  const [postError, setPostError] = useState<string | null>(null);
   const [limitReached, setLimitReached] = useState(
     initialItems.filter((q) => q.studentId === studentId).length >= QUESTION_LIMIT
   );
@@ -41,6 +42,7 @@ export default function QAThread({
     e.preventDefault();
     if (!question.trim() || limitReached) return;
     setPosting(true);
+    setPostError(null);
     try {
       const res = await fetch(`/api/school/lessons/${lessonId}/questions`, {
         method: "POST",
@@ -53,9 +55,20 @@ export default function QAThread({
         return;
       }
 
-      const raw = await res.json();
+      const data = await res.json();
+
+      if (res.status === 409 && data.duplicate) {
+        setPostError(data.error);
+        return;
+      }
+
+      if (!res.ok) {
+        setPostError(data.error ?? "Failed to post question.");
+        return;
+      }
+
       // Merge in the student's name since the API returns a bare DB row
-      const newItem: QAItem = { ...raw, studentName };
+      const newItem: QAItem = { ...data, studentName };
       setItems((prev) => [...prev, newItem]);
       setQuestion("");
     } finally {
@@ -137,11 +150,14 @@ export default function QAThread({
         </div>
       ) : (
         <div className="border-t border-line">
+          {postError && (
+            <p className="px-4 pt-3 font-mono text-xs text-[#991B1B]">{postError}</p>
+          )}
           <form onSubmit={post} className="flex gap-2 p-4">
             <input
               type="text"
               value={question}
-              onChange={(e) => setQuestion(e.target.value)}
+              onChange={(e) => { setQuestion(e.target.value); setPostError(null); }}
               placeholder="Ask a question about this lesson…"
               className="flex-1 rounded-[3px] border border-line bg-paper px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-navy focus:outline-none"
             />

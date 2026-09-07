@@ -7,6 +7,38 @@ import Anthropic from "@anthropic-ai/sdk";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
+// Returns true if newQuestion is semantically the same as any in existingQuestions.
+// Uses Haiku for speed and low cost — this runs on every student Q&A submit.
+export async function checkDuplicateQuestion(
+  newQuestion: string,
+  existingQuestions: string[]
+): Promise<boolean> {
+  if (existingQuestions.length === 0) return false;
+
+  const list = existingQuestions
+    .slice(0, 20) // cap prompt size
+    .map((q, i) => `${i + 1}. ${q}`)
+    .join("\n");
+
+  const msg = await client.messages.create({
+    model: "claude-haiku-4-5-20251001",
+    max_tokens: 10,
+    system:
+      "You are a duplicate-question detector. " +
+      "Reply with only 'YES' if the new question is essentially the same as (or covered by) any existing question, " +
+      "or 'NO' if it is genuinely different.",
+    messages: [
+      {
+        role: "user",
+        content: `New question: "${newQuestion}"\n\nExisting questions:\n${list}`,
+      },
+    ],
+  });
+
+  const text = msg.content[0]?.type === "text" ? msg.content[0].text.trim().toUpperCase() : "NO";
+  return text.startsWith("YES");
+}
+
 export async function answerLessonQuestion(
   lessonTitle: string,
   lessonDescription: string | null,

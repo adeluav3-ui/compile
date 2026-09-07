@@ -3,7 +3,7 @@ import { db } from "@/db";
 import { lessonQuestions, aiQueue, lessons } from "@/db/schema";
 import { and, eq, asc } from "drizzle-orm";
 import { getSchoolSession } from "@/lib/school-session";
-import { answerLessonQuestion } from "@/lib/ai";
+import { answerLessonQuestion, checkDuplicateQuestion } from "@/lib/ai";
 
 const QUESTION_LIMIT = 5;
 
@@ -62,6 +62,34 @@ export async function POST(
       },
       { status: 429 }
     );
+  }
+
+  // Check for duplicate or very similar questions already asked in this class
+  const allClassQuestions = await db
+    .select({ id: lessonQuestions.id, questionText: lessonQuestions.questionText })
+    .from(lessonQuestions)
+    .where(
+      and(
+        eq(lessonQuestions.lessonId, lessonId),
+        eq(lessonQuestions.classId, session.classId!)
+      )
+    );
+
+  if (allClassQuestions.length > 0) {
+    const duplicate = await checkDuplicateQuestion(
+      questionText.trim(),
+      allClassQuestions.map((q) => q.questionText)
+    );
+    if (duplicate) {
+      return NextResponse.json(
+        {
+          error:
+            "This question has already been asked in your class. Check the Q&A above — it may already be answered there.",
+          duplicate: true,
+        },
+        { status: 409 }
+      );
+    }
   }
 
   const [lesson] = await db.select().from(lessons).where(eq(lessons.id, lessonId));
