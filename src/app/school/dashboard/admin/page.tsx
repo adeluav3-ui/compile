@@ -11,8 +11,7 @@ import {
   submissions,
   profiles,
 } from "@/db/schema";
-import { and, eq, sql } from "drizzle-orm";
-import Link from "next/link";
+import { eq, sql } from "drizzle-orm";
 import DashboardHeader from "@/components/school/DashboardHeader";
 import AddTeacherSection from "./AddTeacherSection";
 import AddClassSection from "./AddClassSection";

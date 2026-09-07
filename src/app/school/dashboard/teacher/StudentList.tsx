@@ -103,7 +103,7 @@ export default function StudentList({ initialStudents }: { initialStudents: Stud
               <span className="font-semibold text-navy-deep">
                 {pending.student.fullName ?? pending.student.username}
               </span>
-              's account? This removes them from all classes and deletes all their submissions. This
+              &apos;s account? This removes them from all classes and deletes all their submissions. This
               cannot be undone.
             </p>
           )}
