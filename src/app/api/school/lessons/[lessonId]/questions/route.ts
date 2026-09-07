@@ -36,6 +36,13 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
 
+  if (!session.isReal && !session.isLocal) {
+    return NextResponse.json(
+      { error: "Q&A is not available in demo mode." },
+      { status: 403 }
+    );
+  }
+
   const { lessonId } = await params;
   const { questionText } = await req.json().catch(() => ({}));
   if (!questionText?.trim()) {
