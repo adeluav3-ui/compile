@@ -2,43 +2,87 @@ import { NextResponse } from "next/server";
 import { getSchoolSession } from "@/lib/school-session";
 import { db } from "@/db";
 import {
-  assessments, assessmentQuestions, lessons, lessonReleases,
+  assessments, assessmentQuestions, lessons, lessonReleases, teacherAssignments,
 } from "@/db/schema";
-import { and, eq, gte, lte, asc } from "drizzle-orm";
+import { and, eq, gte, lte, asc, inArray } from "drizzle-orm";
 import { generateAssessmentQuestions } from "@/lib/ai";
 
-// GET — list assessments for the teacher's class
+// GET — list assessments for all of the teacher's assigned classes
 export async function GET() {
   const session = await getSchoolSession();
   if (!session || session.role !== "teacher")
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const assignments = await db
+    .select({ classId: teacherAssignments.classId })
+    .from(teacherAssignments)
+    .where(eq(teacherAssignments.profileId, session.profileId));
+
+  const classIds =
+    assignments.length > 0
+      ? assignments.map((a) => a.classId)
+      : session.classId
+        ? [session.classId]
+        : [];
+
+  if (classIds.length === 0) return NextResponse.json({ assessments: [] });
+
   const rows = await db
     .select()
     .from(assessments)
-    .where(eq(assessments.classId, session.classId!))
+    .where(
+      and(
+        classIds.length === 1
+          ? eq(assessments.classId, classIds[0])
+          : inArray(assessments.classId, classIds),
+        eq(assessments.teacherId, session.profileId)
+      )
+    )
     .orderBy(assessments.createdAt);
 
   return NextResponse.json({ assessments: rows });
 }
 
-// POST — create assessment + generate questions
+// POST — create assessment + generate questions for a specific class
 export async function POST(request: Request) {
   const session = await getSchoolSession();
   if (!session || session.role !== "teacher")
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { type, lessonRangeStartId, lessonRangeEndId } = (await request.json()) as {
+  const { classId, type, lessonRangeStartId, lessonRangeEndId } = (await request.json()) as {
+    classId: string;
     type: "midterm" | "exam";
     lessonRangeStartId: string;
     lessonRangeEndId: string;
   };
 
-  if (!type || !lessonRangeStartId || !lessonRangeEndId)
-    return NextResponse.json({ error: "type, lessonRangeStartId, and lessonRangeEndId are required." }, { status: 400 });
+  if (!classId || !type || !lessonRangeStartId || !lessonRangeEndId)
+    return NextResponse.json(
+      { error: "classId, type, lessonRangeStartId, and lessonRangeEndId are required." },
+      { status: 400 }
+    );
+
+  // Verify the teacher is assigned to this class
+  const [assignment] = await db
+    .select({ id: teacherAssignments.id })
+    .from(teacherAssignments)
+    .where(
+      and(
+        eq(teacherAssignments.profileId, session.profileId),
+        eq(teacherAssignments.classId, classId)
+      )
+    )
+    .limit(1);
+
+  // Fall back to session.classId for demo/local sessions that have no DB assignments
+  const isAuthorized =
+    assignment != null ||
+    (session.classId === classId);
+
+  if (!isAuthorized)
+    return NextResponse.json({ error: "Class not assigned to your account." }, { status: 403 });
 
   const objQuestionCount = type === "midterm" ? 20 : 30;
-  const classId = session.classId!;
 
   // Fetch start and end lessons to get their order values
   const [startLesson] = await db.select({ order: lessons.order }).from(lessons)
@@ -63,7 +107,7 @@ export async function POST(request: Request) {
     .where(and(gte(lessons.order, startLesson.order), lte(lessons.order, endLesson.order)))
     .orderBy(asc(lessons.order));
 
-  // Validate all are released
+  // Validate all are released to this class
   const unreleasedInRange = rangeLessons.filter((l) => !releasedIds.has(l.id));
   if (unreleasedInRange.length > 0) {
     return NextResponse.json({
@@ -95,7 +139,6 @@ export async function POST(request: Request) {
   try {
     generated = await generateAssessmentQuestions(rangeLessons, objQuestionCount, type);
   } catch (err) {
-    // Roll back assessment record and surface error
     await db.delete(assessments).where(eq(assessments.id, assessment.id));
     const msg = err instanceof Error ? err.message : "AI generation failed.";
     return NextResponse.json({ error: msg }, { status: 500 });

@@ -1,8 +1,8 @@
 import { getSchoolSession } from "@/lib/school-session";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
-import { assessments, lessons } from "@/db/schema";
-import { and, eq, asc } from "drizzle-orm";
+import { assessments, lessons, teacherAssignments, classes } from "@/db/schema";
+import { and, eq, asc, inArray } from "drizzle-orm";
 import Link from "next/link";
 
 const STATUS_BADGE: Record<string, string> = {
@@ -16,20 +16,44 @@ export default async function AssessmentsListPage() {
   const session = await getSchoolSession();
   if (!session || session.role !== "teacher") redirect("/school/login");
 
-  const rows = await db
-    .select({
-      id: assessments.id,
-      type: assessments.type,
-      status: assessments.status,
-      deliveryMethod: assessments.deliveryMethod,
-      objQuestionCount: assessments.objQuestionCount,
-      createdAt: assessments.createdAt,
-      startTitle: lessons.title,
-    })
-    .from(assessments)
-    .innerJoin(lessons, eq(assessments.lessonRangeStartId, lessons.id))
-    .where(and(eq(assessments.classId, session.classId!), eq(assessments.teacherId, session.profileId)))
-    .orderBy(asc(assessments.createdAt));
+  const assignments = await db
+    .select({ classId: teacherAssignments.classId })
+    .from(teacherAssignments)
+    .where(eq(teacherAssignments.profileId, session.profileId));
+
+  const classIds =
+    assignments.length > 0
+      ? assignments.map((a) => a.classId)
+      : session.classId
+        ? [session.classId]
+        : [];
+
+  const rows =
+    classIds.length === 0
+      ? []
+      : await db
+          .select({
+            id: assessments.id,
+            type: assessments.type,
+            status: assessments.status,
+            deliveryMethod: assessments.deliveryMethod,
+            objQuestionCount: assessments.objQuestionCount,
+            createdAt: assessments.createdAt,
+            startTitle: lessons.title,
+            className: classes.name,
+          })
+          .from(assessments)
+          .innerJoin(lessons, eq(assessments.lessonRangeStartId, lessons.id))
+          .innerJoin(classes, eq(assessments.classId, classes.id))
+          .where(
+            and(
+              classIds.length === 1
+                ? eq(assessments.classId, classIds[0])
+                : inArray(assessments.classId, classIds),
+              eq(assessments.teacherId, session.profileId)
+            )
+          )
+          .orderBy(asc(assessments.createdAt));
 
   return (
     <div className="min-h-screen bg-paper">
@@ -69,6 +93,9 @@ export default async function AssessmentsListPage() {
                   <div className="flex items-center gap-2">
                     <span className="font-semibold capitalize text-navy-deep">
                       {a.type === "midterm" ? "Mid-Term" : "Final Exam"}
+                    </span>
+                    <span className="rounded-xs bg-navy/10 px-2 py-0.5 font-mono text-[10px] text-navy-deep">
+                      {a.className}
                     </span>
                     <span className={`rounded-[2px] px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider ${STATUS_BADGE[a.status]}`}>
                       {a.status.replace("_", " ")}
