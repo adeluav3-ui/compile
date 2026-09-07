@@ -8,9 +8,10 @@ import {
   lessonReleases,
   lessonQuestions,
   submissions,
+  studentClasses,
   profiles,
 } from "@/db/schema";
-import { and, eq, desc, inArray } from "drizzle-orm";
+import { and, eq, desc, inArray, sql } from "drizzle-orm";
 import Link from "next/link";
 import DashboardHeader from "@/components/school/DashboardHeader";
 import ClassStatusPanel from "@/components/school/ClassStatusPanel";
@@ -20,6 +21,7 @@ import GradeConfirm from "./GradeConfirm";
 import TeacherLessonPreview from "./TeacherLessonPreview";
 import PlayForClassPlayer from "./PlayForClassPlayer";
 import AddStudentsSection from "./AddStudentsSection";
+import StudentList, { type StudentRow } from "./StudentList";
 import { getVideoSyncStates } from "@/lib/video-sync";
 import { isOnlineDelivery } from "@/lib/delivery-mode";
 
@@ -71,7 +73,7 @@ export default async function TeacherDashboard() {
 
   // Phase 2 — all remaining queries in parallel
   const studentProfiles = profiles;
-  const [allAssignedClasses, allLessons, releases, pendingQA, pendingSubmissions] =
+  const [allAssignedClasses, allLessons, releases, pendingQA, pendingSubmissions, studentRows] =
     await Promise.all([
       db
         .select({ id: classes.id, name: classes.name, level: classes.level, academicYear: classes.academicYear })
@@ -117,6 +119,40 @@ export default async function TeacherDashboard() {
         .innerJoin(classes, eq(submissions.classId, classes.id))
         .where(and(subFilter, eq(submissions.status, "ai_graded")))
         .orderBy(desc(submissions.submittedAt)),
+
+      // All students across all assigned classes with basic progress stats
+      db
+        .select({
+          profileId: studentClasses.profileId,
+          classId: studentClasses.classId,
+          enrolledAt: studentClasses.enrolledAt,
+          fullName: profiles.fullName,
+          username: profiles.username,
+          submissionCount: sql<number>`count(distinct ${submissions.id})::int`,
+          lastActive: sql<string | null>`max(${submissions.submittedAt})`,
+        })
+        .from(studentClasses)
+        .innerJoin(profiles, eq(studentClasses.profileId, profiles.id))
+        .leftJoin(
+          submissions,
+          and(
+            eq(submissions.studentId, studentClasses.profileId),
+            eq(submissions.classId, studentClasses.classId),
+          )
+        )
+        .where(
+          assignedClassIds.length === 1
+            ? eq(studentClasses.classId, assignedClassIds[0])
+            : inArray(studentClasses.classId, assignedClassIds)
+        )
+        .groupBy(
+          studentClasses.profileId,
+          studentClasses.classId,
+          studentClasses.enrolledAt,
+          profiles.fullName,
+          profiles.username,
+        )
+        .orderBy(profiles.fullName),
     ]);
 
   // Build per-lesson release map: lessonId → classIds that have it released
@@ -126,6 +162,17 @@ export default async function TeacherDashboard() {
     arr.push(r.classId);
     releasedClassIdsByLesson.set(r.lessonId, arr);
   }
+
+  const classNameById = Object.fromEntries(allAssignedClasses.map((c) => [c.id, c.name]));
+
+  const students: StudentRow[] = studentRows.map((r) => ({
+    ...r,
+    className: classNameById[r.classId] ?? r.classId,
+    enrolledAt: r.enrolledAt instanceof Date ? r.enrolledAt.toISOString() : String(r.enrolledAt),
+    lastActive: r.lastActive ? String(r.lastActive) : null,
+    fullName: r.fullName,
+    username: r.username,
+  }));
 
   const releasedLessonIds = [...releasedClassIdsByLesson.keys()];
   const onlineMode = isOnlineDelivery();
@@ -270,6 +317,9 @@ export default async function TeacherDashboard() {
         {(session.isReal || session.isLocal) && (
           <AddStudentsSection classes={allAssignedClasses} />
         )}
+
+        {/* ── Student List ── */}
+        <StudentList initialStudents={students} />
 
         {/* ── Submissions Review (all classes) ── */}
         <section>
