@@ -38,7 +38,7 @@ export default async function StudentLessonPage({
     : null;
 
   const [savedDraft] = await db
-    .select()
+    .select({ files: workspaceSaves.files })
     .from(workspaceSaves)
     .where(and(eq(workspaceSaves.studentId, session.profileId), eq(workspaceSaves.lessonId, id)));
 
@@ -74,17 +74,7 @@ export default async function StudentLessonPage({
     createdAt: q.createdAt.toISOString(),
   }));
 
-  const defaultCode = `<!-- Lesson ${lesson.order}: ${lesson.title} -->
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>${lesson.title}</title>
-</head>
-<body>
-  <h1>Hello, World!</h1>
-</body>
-</html>`;
+  const initialFiles = savedDraft?.files ?? [{ name: "index.html", content: "" }];
 
   return (
     <div className="min-h-screen bg-paper">
@@ -202,7 +192,7 @@ export default async function StudentLessonPage({
           <h2 className="mb-3 font-mono text-xs uppercase tracking-widest text-brass">
             Practice Workspace
           </h2>
-          <CodeWorkspace lessonId={id} initialCode={savedDraft?.code ?? defaultCode} />
+          <CodeWorkspace lessonId={id} initialFiles={initialFiles} />
         </section>
 
         <section>

@@ -82,7 +82,11 @@ export async function generateAssessmentQuestions(
   lessonsData: Array<{ id: string; order: number; title: string; notes: string | null }>,
   questionCount: number,
   assessmentType: "midterm" | "exam"
-): Promise<{ questions: GeneratedQuestion[]; practicalPrompt: string }> {
+): Promise<{ questions: GeneratedQuestion[]; practicalPrompt: string | null }> {
+  // Lessons from order 8+ are coding lessons — only these get a practical exercise
+  const codingLessons = lessonsData.filter((l) => l.order >= 8);
+  const hasPractical = codingLessons.length > 0;
+
   // Truncate each lesson's notes to keep prompt within limits
   const lessonContext = lessonsData
     .map((l) => {
@@ -93,12 +97,50 @@ export async function generateAssessmentQuestions(
 
   const typeLabel = assessmentType === "midterm" ? "Mid-Term" : "Final Exam";
 
+  const practicalInstruction = hasPractical
+    ? [
+        "- Also generate one practical coding exercise. Requirements for the practical:",
+        "  * Base it STRICTLY on the coding lessons provided above (lesson 8 and beyond only)",
+        "  * Reference specific concepts, tags, properties, or techniques that appear in those lesson notes",
+        "  * The task must be completable by a student who has studied ONLY the lessons listed above",
+        "  * Do NOT introduce any concept, tag, property, or technique not present in the lesson notes",
+        "  * Name the specific things the student must use (e.g. exact HTML tags, CSS properties covered)",
+        "  * The practical must produce a visible result in a browser",
+      ].join("\n")
+    : "- Do NOT include a practical exercise. These lessons are theory-only (no coding yet).";
+
+  const schemaExample = hasPractical
+    ? JSON.stringify({
+        questions: [
+          {
+            questionText: "example question?",
+            options: ["option 1", "option 2", "option 3", "option 4"],
+            correctOptionIndex: 0,
+            sourceLessonId: "the-lesson-uuid-here",
+          },
+        ],
+        practicalPrompt: "Using only what you learned in [specific lesson title], create a page that...",
+      })
+    : JSON.stringify({
+        questions: [
+          {
+            questionText: "example question?",
+            options: ["option 1", "option 2", "option 3", "option 4"],
+            correctOptionIndex: 0,
+            sourceLessonId: "the-lesson-uuid-here",
+          },
+        ],
+        practicalPrompt: null,
+      });
+
   const msg = await client.messages.create({
     model: "claude-sonnet-4-6",
     max_tokens: 6000,
     system:
       "You are an expert secondary school examination setter for Nigerian JSS students. " +
       "You generate high-quality multiple-choice questions strictly from the lesson content provided. " +
+      "Every question and every part of the practical must derive directly from the lesson notes given — " +
+      "never introduce outside knowledge or concepts not present in the provided notes. " +
       "Return ONLY valid JSON — no explanations, no markdown, no text outside the JSON object.",
     messages: [
       {
@@ -112,23 +154,12 @@ export async function generateAssessmentQuestions(
           `- Exactly ${questionCount} questions total, spread proportionally across all lessons`,
           "- Each question must have exactly 4 answer options (plain text, no A/B/C/D prefix)",
           "- correctOptionIndex is 0-based (0=first option is correct, 1=second, etc.)",
-          "- Questions must test real understanding, not just recall of definitions",
+          "- Questions must test real understanding of the lesson content, not just recall of definitions",
           "- sourceLessonId must be the exact lesson ID string from above",
-          "- Also generate one practical coding exercise appropriate to the material covered",
+          practicalInstruction,
           "",
-          'Return ONLY this JSON (no other text):',
-          JSON.stringify({
-            questions: [
-              {
-                questionText: "example question?",
-                options: ["option 1", "option 2", "option 3", "option 4"],
-                correctOptionIndex: 0,
-                sourceLessonId: "the-lesson-uuid-here",
-              },
-            ],
-            practicalPrompt:
-              "Write a complete HTML page that demonstrates...",
-          }),
+          "Return ONLY this JSON (no other text):",
+          schemaExample,
         ].join("\n"),
       },
     ],
@@ -142,21 +173,22 @@ export async function generateAssessmentQuestions(
 
   const parsed = JSON.parse(jsonMatch[0]) as {
     questions: GeneratedQuestion[];
-    practicalPrompt: string;
+    practicalPrompt: string | null;
   };
 
   // Validate + clamp
-  const questions = parsed.questions.slice(0, questionCount).map((q, i) => ({
+  const questions = parsed.questions.slice(0, questionCount).map((q) => ({
     questionText: String(q.questionText ?? ""),
     options: (Array.isArray(q.options) ? q.options : ["", "", "", ""]).map(String),
     correctOptionIndex: Math.min(3, Math.max(0, Number(q.correctOptionIndex ?? 0))),
     sourceLessonId: String(q.sourceLessonId ?? lessonsData[0]?.id ?? ""),
   }));
 
-  return {
-    questions,
-    practicalPrompt: String(parsed.practicalPrompt ?? "Complete the practical exercise."),
-  };
+  const practicalPrompt = hasPractical && parsed.practicalPrompt
+    ? String(parsed.practicalPrompt)
+    : null;
+
+  return { questions, practicalPrompt };
 }
 
 export async function regenerateSingleQuestion(

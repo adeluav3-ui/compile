@@ -215,10 +215,21 @@ CREATE TABLE IF NOT EXISTS workspace_saves (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   student_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   lesson_id UUID NOT NULL REFERENCES lessons(id) ON DELETE CASCADE,
-  code TEXT NOT NULL,
+  files JSONB NOT NULL DEFAULT '[]',
   saved_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
   UNIQUE(student_id, lesson_id)
 );
+
+-- Migrate existing installs: replace code TEXT column with files JSONB
+DO $$ BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'workspace_saves' AND column_name = 'code'
+  ) THEN
+    ALTER TABLE workspace_saves DROP COLUMN code;
+    ALTER TABLE workspace_saves ADD COLUMN IF NOT EXISTS files JSONB NOT NULL DEFAULT '[]';
+  END IF;
+END $$;
 
 -- ---------------------------------------------------------------------------
 -- assessments — create if missing

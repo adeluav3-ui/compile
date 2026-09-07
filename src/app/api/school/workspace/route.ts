@@ -4,7 +4,9 @@ import { workspaceSaves } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import { getSchoolSession } from "@/lib/school-session";
 
-// GET — load last saved code for a lesson
+type WorkspaceFile = { name: string; content: string };
+
+// GET — load saved files for a lesson
 export async function GET(req: NextRequest) {
   const session = await getSchoolSession();
   if (!session || session.role !== "student") {
@@ -19,27 +21,29 @@ export async function GET(req: NextRequest) {
     .from(workspaceSaves)
     .where(and(eq(workspaceSaves.studentId, session.profileId), eq(workspaceSaves.lessonId, lessonId)));
 
-  return NextResponse.json({ code: row?.code ?? null });
+  return NextResponse.json({ files: row?.files ?? null });
 }
 
-// POST — upsert draft code
+// POST — upsert draft files
 export async function POST(req: NextRequest) {
   const session = await getSchoolSession();
   if (!session || session.role !== "student") {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
 
-  const { lessonId, code } = await req.json().catch(() => ({}));
-  if (!lessonId || typeof code !== "string") {
-    return NextResponse.json({ error: "lessonId and code required." }, { status: 400 });
+  const body = await req.json().catch(() => ({}));
+  const { lessonId, files } = body as { lessonId?: string; files?: WorkspaceFile[] };
+
+  if (!lessonId || !Array.isArray(files)) {
+    return NextResponse.json({ error: "lessonId and files required." }, { status: 400 });
   }
 
   await db
     .insert(workspaceSaves)
-    .values({ studentId: session.profileId, lessonId, code })
+    .values({ studentId: session.profileId, lessonId, files })
     .onConflictDoUpdate({
       target: [workspaceSaves.studentId, workspaceSaves.lessonId],
-      set: { code, savedAt: new Date() },
+      set: { files, savedAt: new Date() },
     });
 
   return NextResponse.json({ ok: true });

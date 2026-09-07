@@ -505,7 +505,7 @@ export const workspaceSaves = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     studentId: uuid("student_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
     lessonId: uuid("lesson_id").notNull().references(() => lessons.id, { onDelete: "cascade" }),
-    code: text("code").notNull(),
+    files: jsonb("files").notNull().$type<{ name: string; content: string }[]>(),
     savedAt: timestamp("saved_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [unique().on(t.studentId, t.lessonId)]
