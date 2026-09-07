@@ -86,6 +86,7 @@ EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 -- ---------------------------------------------------------------------------
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS username TEXT UNIQUE;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS full_name TEXT;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS stored_password TEXT;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL;
 

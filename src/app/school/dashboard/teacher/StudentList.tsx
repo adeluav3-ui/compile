@@ -8,6 +8,7 @@ export type StudentRow = {
   className: string;
   fullName: string | null;
   username: string | null;
+  storedPassword: string | null;
   submissionCount: number;
   lastActive: string | null;
   enrolledAt: string;
@@ -73,6 +74,27 @@ export default function StudentList({ initialStudents }: { initialStudents: Stud
     }
   }
 
+  // ── CSV export ──────────────────────────────────────────────────────────────
+  function exportCredentialsCsv() {
+    const rows = [["Class", "Full Name", "Username", "Password"]];
+    for (const [, { className, rows: classRows }] of byClass.entries()) {
+      for (const s of classRows) {
+        const pw = resetPasswords.get(s.profileId) ?? s.storedPassword ?? "";
+        rows.push([className, s.fullName ?? "", s.username ?? "", pw]);
+      }
+    }
+    const csv = rows
+      .map((r) => r.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "student-credentials.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   // ── Credentials action ──────────────────────────────────────────────────────
   async function resetPassword(student: StudentRow) {
     setResetLoading(student.profileId);
@@ -117,7 +139,7 @@ export default function StudentList({ initialStudents }: { initialStudents: Stud
             <button
               key={v}
               onClick={() => { setView(v); setPending(null); setActionError(null); setResetError(null); }}
-              className={`rounded-[2px] px-3 py-1 font-mono text-xs capitalize transition-colors ${
+              className={`rounded-xs px-3 py-1 font-mono text-xs capitalize transition-colors ${
                 view === v
                   ? "bg-surface text-navy-deep shadow-sm"
                   : "text-muted hover:text-navy"
@@ -257,10 +279,17 @@ export default function StudentList({ initialStudents }: { initialStudents: Stud
       ) : (
         /* ── Credentials view ───────────────────────────────────────────────── */
         <>
-          <p className="mb-4 text-sm text-muted">
-            Share these login details with students verbally. Passwords are generated fresh when you
-            reset them — they are not stored and disappear on page refresh.
-          </p>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-muted">
+              Passwords are visible and can be reset at any time.
+            </p>
+            <button
+              onClick={exportCredentialsCsv}
+              className="rounded-[3px] border border-line bg-surface px-3 py-1.5 font-mono text-xs text-navy hover:border-navy"
+            >
+              ↓ Export CSV
+            </button>
+          </div>
 
           {resetError && (
             <p className="mb-3 rounded-[3px] bg-[#FEF2F2] px-3 py-2 font-mono text-xs text-[#991B1B]">
@@ -288,6 +317,7 @@ export default function StudentList({ initialStudents }: { initialStudents: Stud
                     <tbody className="divide-y divide-line bg-surface">
                       {rows.map((s) => {
                         const newPassword = resetPasswords.get(s.profileId);
+                        const displayPassword = newPassword ?? s.storedPassword;
                         const isResetting = resetLoading === s.profileId;
                         return (
                           <tr key={`${s.profileId}-${s.classId}`}>
@@ -298,12 +328,12 @@ export default function StudentList({ initialStudents }: { initialStudents: Stud
                               {s.username ?? "—"}
                             </td>
                             <td className="px-4 py-3">
-                              {newPassword ? (
+                              {displayPassword ? (
                                 <span className="select-all font-mono text-sm font-semibold text-brass">
-                                  {newPassword}
+                                  {displayPassword}
                                 </span>
                               ) : (
-                                <span className="font-mono text-xs text-muted">••••••••••••</span>
+                                <span className="font-mono text-xs text-muted">not set</span>
                               )}
                             </td>
                             <td className="px-4 py-3 text-right">
@@ -312,11 +342,7 @@ export default function StudentList({ initialStudents }: { initialStudents: Stud
                                 disabled={resetLoading !== null}
                                 className="font-mono text-xs text-muted transition-colors hover:text-navy disabled:opacity-40"
                               >
-                                {isResetting
-                                  ? "Resetting…"
-                                  : newPassword
-                                    ? "Reset again"
-                                    : "Reset password"}
+                                {isResetting ? "Resetting…" : "Reset password"}
                               </button>
                             </td>
                           </tr>

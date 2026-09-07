@@ -128,6 +128,7 @@ export default async function TeacherDashboard() {
           enrolledAt: studentClasses.enrolledAt,
           fullName: profiles.fullName,
           username: profiles.username,
+          storedPassword: profiles.storedPassword,
           submissionCount: sql<number>`count(distinct ${submissions.id})::int`,
           lastActive: sql<string | null>`max(${submissions.submittedAt})`,
         })
@@ -151,6 +152,7 @@ export default async function TeacherDashboard() {
           studentClasses.enrolledAt,
           profiles.fullName,
           profiles.username,
+          profiles.storedPassword,
         )
         .orderBy(profiles.fullName),
     ]);
@@ -172,6 +174,7 @@ export default async function TeacherDashboard() {
     lastActive: r.lastActive ? String(r.lastActive) : null,
     fullName: r.fullName,
     username: r.username,
+    storedPassword: r.storedPassword ?? null,
   }));
 
   const releasedLessonIds = [...releasedClassIdsByLesson.keys()];

@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSchoolSession } from "@/lib/school-session";
 import { db } from "@/db";
 import { teacherQuestions, lessons } from "@/db/schema";
-import { and, eq, asc } from "drizzle-orm";
+import { and, eq, asc, count } from "drizzle-orm";
 import { answerTeacherQuestion } from "@/lib/ai";
+
+const TEACHER_QUESTION_LIMIT = 5;
 
 export async function GET(
   _req: NextRequest,
@@ -50,6 +52,24 @@ export async function POST(
   const [lesson] = await db.select().from(lessons).where(eq(lessons.id, lessonId));
   if (!lesson) {
     return NextResponse.json({ error: "Lesson not found." }, { status: 404 });
+  }
+
+  // Enforce per-teacher per-lesson question limit
+  const [{ total }] = await db
+    .select({ total: count() })
+    .from(teacherQuestions)
+    .where(
+      and(
+        eq(teacherQuestions.lessonId, lessonId),
+        eq(teacherQuestions.teacherId, session.profileId)
+      )
+    );
+
+  if (total >= TEACHER_QUESTION_LIMIT) {
+    return NextResponse.json(
+      { error: `You have reached the ${TEACHER_QUESTION_LIMIT}-question limit for this lesson.`, limitReached: true },
+      { status: 429 }
+    );
   }
 
   const aiAnswer = await answerTeacherQuestion(lesson.title, lesson.description ?? null, questionText);

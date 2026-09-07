@@ -80,6 +80,11 @@ export async function POST(
     return NextResponse.json({ error: authError.message }, { status: 500 });
   }
 
+  // Store plain-text password so teachers can view credentials without needing to reset
+  await db.update(profiles)
+    .set({ storedPassword: newPassword })
+    .where(eq(profiles.id, studentId));
+
   // Keep local offline cache in sync
   if (process.env.LOCAL_DB_PATH) {
     await cacheLocalCredential(

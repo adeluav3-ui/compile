@@ -56,6 +56,9 @@ export const profiles = pgTable("profiles", {
   // either field; the API resolves username → email before calling Supabase.
   username: text("username").unique(),
   fullName: text("full_name"),
+  // Plain-text password stored only for school student accounts so teachers
+  // can see credentials. Accepted security trade-off for the pilot.
+  storedPassword: text("stored_password"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
