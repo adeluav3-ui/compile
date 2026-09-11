@@ -29,16 +29,22 @@ export default function SchoolPage() {
             and dashboards for admins, teachers, and students — built to run even when your
             school&apos;s internet doesn&apos;t.
           </p>
-          <div className="mb-3 flex justify-center">
-            <Link
-              href="/school/demo"
+          <div className="mb-3 flex flex-wrap justify-center gap-3">
+            <a
+              href="/school/signup"
               className="rounded-[2px] bg-navy px-6 py-[11px] text-sm font-semibold text-white transition-colors hover:bg-navy-deep"
             >
-              Try the live demo →
+              Register your school →
+            </a>
+            <Link
+              href="/school/demo"
+              className="rounded-[2px] border border-navy px-6 py-2.75 text-sm font-semibold text-navy transition-colors hover:bg-navy/5"
+            >
+              Try the live demo
             </Link>
           </div>
           <p className="mb-14 text-xs text-muted">
-            No sign-up needed — explore as a teacher or student
+            ₦150,000/month · demo needs no sign-up
           </p>
 
           {/* Stat row */}
@@ -209,11 +215,21 @@ export default function SchoolPage() {
               ))}
             </ul>
             <a
-              href="mailto:compile100@gmail.com"
+              href="/school/signup"
               className="block w-full rounded-[2px] bg-navy py-[11px] text-center text-sm font-semibold text-white transition-colors hover:bg-navy-deep"
             >
-              Book a demo for your school
+              Register your school →
             </a>
+            <p className="mt-3 text-xs text-muted">
+              Or{" "}
+              <a href="/school/demo" className="text-steel hover:underline">
+                try the demo first
+              </a>{" "}
+              · questions?{" "}
+              <a href="mailto:compile100@gmail.com" className="text-steel hover:underline">
+                compile100@gmail.com
+              </a>
+            </p>
           </div>
         </div>
       </section>

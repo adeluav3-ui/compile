@@ -98,6 +98,7 @@ ALTER TABLE schools ADD COLUMN IF NOT EXISTS state TEXT;
 ALTER TABLE schools ADD COLUMN IF NOT EXISTS admin_id UUID REFERENCES profiles(id);
 ALTER TABLE schools ADD COLUMN IF NOT EXISTS subscription_expires_at TIMESTAMPTZ;
 ALTER TABLE schools ADD COLUMN IF NOT EXISTS license_key TEXT UNIQUE;
+ALTER TABLE schools ADD COLUMN IF NOT EXISTS onboarded_at TIMESTAMPTZ;
 ALTER TABLE schools ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL;
 
 -- ---------------------------------------------------------------------------

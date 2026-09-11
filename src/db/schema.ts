@@ -217,6 +217,7 @@ export const schools = pgTable("schools", {
   subscriptionStatus: subscriptionStatusEnum("subscription_status").notNull().default("trial"),
   subscriptionExpiresAt: timestamp("subscription_expires_at", { withTimezone: true }),
   licenseKey: text("license_key").unique(), // for offline license validation
+  onboardedAt: timestamp("onboarded_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 

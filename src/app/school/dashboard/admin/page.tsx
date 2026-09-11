@@ -16,6 +16,7 @@ import DashboardHeader from "@/components/school/DashboardHeader";
 import AddTeacherSection from "./AddTeacherSection";
 import AddClassSection from "./AddClassSection";
 import TeacherList from "./TeacherList";
+import OnboardingModal from "@/components/school/OnboardingModal";
 
 export default async function AdminDashboard() {
   const session = await getSchoolSession();
@@ -151,6 +152,11 @@ export default async function AdminDashboard() {
   return (
     <div className="min-h-screen bg-paper">
       <DashboardHeader name={session.name} role="school_admin" isReal={session.isReal} />
+
+      <OnboardingModal
+        hasOnboarded={!!school?.onboardedAt}
+        hasActiveSubscription={isActive}
+      />
 
       <main className="mx-auto max-w-4xl space-y-10 px-6 py-8">
         {/* School header */}
@@ -333,12 +339,22 @@ export default async function AdminDashboard() {
                 </div>
               </div>
             </div>
-            <div className="mt-4 border-t border-line pt-4">
+            <div className="mt-4 flex flex-wrap items-center gap-4 border-t border-line pt-4">
+              <a
+                href="/school/payment"
+                className={`rounded-[3px] px-4 py-2 font-mono text-xs transition-colors ${
+                  isActive
+                    ? "border border-line text-muted hover:border-navy hover:text-navy"
+                    : "bg-navy text-surface hover:bg-navy-deep"
+                }`}
+              >
+                {isActive ? "Renew subscription →" : "Activate subscription →"}
+              </a>
               <a
                 href="mailto:compile100@gmail.com"
                 className="text-xs text-steel transition-colors hover:text-navy"
               >
-                Contact Compile to renew or upgrade →
+                Questions? Contact Compile
               </a>
             </div>
           </div>

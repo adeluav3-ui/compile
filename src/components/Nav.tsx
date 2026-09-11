@@ -14,7 +14,7 @@ const links: NavLink[] = [
   { href: "/", label: "Home" },
   { href: "/cohort", label: "Cohort 01" },
   { href: "/individual", label: "Individual", pill: "Waitlist" },
-  { href: "/school", label: "For Schools", pill: "Soon" },
+  { href: "/school", label: "For Schools" },
   { href: "/contact", label: "Contact" },
   { href: "/school/login", label: "School Login" },
 ];

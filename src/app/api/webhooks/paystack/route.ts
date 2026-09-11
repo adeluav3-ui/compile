@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "crypto";
 import { db } from "@/db";
-import { cohortRegistrations } from "@/db/schema";
+import { cohortRegistrations, schoolSubscriptions, schools } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
 export async function POST(req: NextRequest) {
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid signature." }, { status: 400 });
   }
 
-  let event: { event: string; data: { reference: string } };
+  let event: { event: string; data: { reference: string; amount: number } };
   try {
     event = JSON.parse(rawBody);
   } catch {
@@ -38,18 +38,59 @@ export async function POST(req: NextRequest) {
 
   if (event.event === "charge.success") {
     const reference = event.data?.reference;
-    if (reference) {
-      const [reg] = await db
-        .select()
-        .from(cohortRegistrations)
-        .where(eq(cohortRegistrations.paystackReference, reference));
+    if (!reference) {
+      return NextResponse.json({ ok: true });
+    }
 
-      if (reg && reg.status !== "paid") {
+    // ── School subscription payment ──────────────────────────────────────────
+    if (reference.startsWith("SCHOOL-")) {
+      const [sub] = await db
+        .select()
+        .from(schoolSubscriptions)
+        .where(eq(schoolSubscriptions.paystackReference, reference));
+
+      if (sub && sub.status !== "paid") {
         await db
-          .update(cohortRegistrations)
-          .set({ status: "paid", paidAt: new Date() })
-          .where(eq(cohortRegistrations.paystackReference, reference));
+          .update(schoolSubscriptions)
+          .set({ status: "paid" })
+          .where(eq(schoolSubscriptions.paystackReference, reference));
+
+        const daysGranted = sub.amountKobo === 120_000_000 ? 365 : 30;
+
+        // Extend school subscription from current expiry (or now), whichever is later
+        const [school] = await db
+          .select({ subscriptionExpiresAt: schools.subscriptionExpiresAt })
+          .from(schools)
+          .where(eq(schools.id, sub.schoolId));
+
+        const base =
+          school?.subscriptionExpiresAt && school.subscriptionExpiresAt > new Date()
+            ? school.subscriptionExpiresAt
+            : new Date();
+
+        const newExpiry = new Date(base);
+        newExpiry.setDate(newExpiry.getDate() + daysGranted);
+
+        await db
+          .update(schools)
+          .set({ subscriptionStatus: "active", subscriptionExpiresAt: newExpiry })
+          .where(eq(schools.id, sub.schoolId));
       }
+
+      return NextResponse.json({ ok: true });
+    }
+
+    // ── Cohort payment ───────────────────────────────────────────────────────
+    const [reg] = await db
+      .select()
+      .from(cohortRegistrations)
+      .where(eq(cohortRegistrations.paystackReference, reference));
+
+    if (reg && reg.status !== "paid") {
+      await db
+        .update(cohortRegistrations)
+        .set({ status: "paid", paidAt: new Date() })
+        .where(eq(cohortRegistrations.paystackReference, reference));
     }
   }
 

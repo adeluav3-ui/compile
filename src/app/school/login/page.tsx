@@ -140,7 +140,10 @@ function LoginForm() {
           </h1>
           {mode === "login" && (
             <p className="mt-2 text-sm text-muted">
-              For schools enrolled on the Compile platform.
+              For schools enrolled on the Compile platform.{" "}
+              <a href="/school/signup" className="text-steel hover:underline">
+                Register your school →
+              </a>
             </p>
           )}
         </div>
