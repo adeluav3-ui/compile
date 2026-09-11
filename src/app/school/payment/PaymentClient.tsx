@@ -73,28 +73,28 @@ export default function PaymentClient({
         ref: reference,
         label: schoolName,
         metadata: { plan, school_name: schoolName },
-        callback: async (response: { reference: string }) => {
+        callback: function (response: { reference: string }) {
           setLoading(true);
-          try {
-            const verRes = await fetch("/api/school/payment/verify", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ reference: response.reference }),
+          fetch("/api/school/payment/verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ reference: response.reference }),
+          })
+            .then((r) => r.json().then((d) => ({ ok: r.ok, data: d })))
+            .then(({ ok, data }) => {
+              setLoading(false);
+              if (ok) {
+                setNewExpiry(data.expiresAt);
+                setSuccess(true);
+                setTimeout(() => router.push("/school/dashboard/admin"), 3000);
+              } else {
+                setError(data.error ?? "Verification failed. Contact support at compile100@gmail.com.");
+              }
+            })
+            .catch(() => {
+              setLoading(false);
+              setError("Verification error. Contact support if payment was deducted.");
             });
-            const verData = await verRes.json();
-            setLoading(false);
-
-            if (verRes.ok) {
-              setNewExpiry(verData.expiresAt);
-              setSuccess(true);
-              setTimeout(() => router.push("/school/dashboard/admin"), 3000);
-            } else {
-              setError(verData.error ?? "Verification failed. Contact support at compile100@gmail.com.");
-            }
-          } catch {
-            setLoading(false);
-            setError("Verification error. Contact support if payment was deducted.");
-          }
         },
         onClose: () => {
           setLoading(false);

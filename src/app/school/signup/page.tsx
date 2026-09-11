@@ -72,49 +72,40 @@ export default function SchoolSignupPage() {
       amount: 15_000_000, // ₦150,000 in kobo
       ref: reference,
       label: `${schoolName} — Compile School Edition`,
-      callback: async (response: { reference: string }) => {
+      callback: function (response: { reference: string }) {
         setStatus("Verifying payment…");
 
-        const signupRes = await fetch("/api/school/signup", {
+        const ref = response.reference;
+        fetch("/api/school/signup", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            schoolName,
-            state,
-            adminName,
-            email,
-            password,
-            paystackReference: response.reference,
-          }),
-        });
-
-        const signupData = await signupRes.json();
-
-        if (!signupRes.ok) {
-          setError(signupData.error ?? "Account creation failed. Contact support at compile100@gmail.com.");
-          setLoading(false);
-          setStatus("");
-          return;
-        }
-
-        setStatus("Logging you in…");
-
-        const loginRes = await fetch("/api/school/auth/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ identifier: email, password }),
-        });
-
-        const loginData = await loginRes.json();
-
-        if (!loginRes.ok) {
-          // Account created, login failed — send to login page
-          router.push("/school/login");
-          return;
-        }
-
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        router.push(loginData.redirectTo as any);
+          body: JSON.stringify({ schoolName, state, adminName, email, password, paystackReference: ref }),
+        })
+          .then((r) => r.json().then((d) => ({ ok: r.ok, data: d })))
+          .then(({ ok, data }) => {
+            if (!ok) {
+              setError(data.error ?? "Account creation failed. Contact support at compile100@gmail.com.");
+              setLoading(false);
+              setStatus("");
+              return;
+            }
+            setStatus("Logging you in…");
+            return fetch("/api/school/auth/login", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ identifier: email, password }),
+            })
+              .then((r) => r.json())
+              .then((loginData) => {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                router.push((loginData.redirectTo ?? "/school/login") as any);
+              });
+          })
+          .catch(() => {
+            setError("Something went wrong. Contact support at compile100@gmail.com.");
+            setLoading(false);
+            setStatus("");
+          });
       },
       onClose: () => {
         setLoading(false);
