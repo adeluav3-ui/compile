@@ -5,11 +5,17 @@ import { schoolSubscriptions, schools, profiles } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { randomBytes } from "crypto";
 
-const MONTHLY_KOBO = 15_000_000;  // ₦150,000
-const YEARLY_KOBO = 120_000_000;  // ₦1,200,000
+const MONTHLY_KOBO = 15_000_000;
+const YEARLY_KOBO = 120_000_000;
 
-// POST /api/school/payment/initiate — school admin initiates a subscription payment
-// Body: { plan?: "monthly" | "yearly" } — defaults to monthly
+function siteOrigin() {
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+  return process.env.NEXT_PUBLIC_SITE_URL ?? "https://compile-eight.vercel.app";
+}
+
+// POST /api/school/payment/initiate — school admin initiates a subscription renewal
+// Body: { plan?: "monthly" | "yearly" }
+// Returns: { authorization_url, reference, ... }
 export async function POST(req: NextRequest) {
   const session = await getSchoolSession();
   if (!session || session.role !== "school_admin") {
@@ -50,11 +56,30 @@ export async function POST(req: NextRequest) {
     .from(schools)
     .where(eq(schools.id, session.schoolId));
 
+  // Initialise Paystack transaction to get hosted checkout URL
+  const paystackRes = await fetch("https://api.paystack.co/transaction/initialize", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      email: profile.email,
+      amount: amountKobo,
+      reference,
+      currency: "NGN",
+      callback_url: `${siteOrigin()}/school/payment/callback`,
+    }),
+  });
+
+  const paystackData = await paystackRes.json();
+
   return NextResponse.json({
     reference,
     email: profile.email,
     amountKobo,
     plan,
     schoolName: school?.name ?? "Your School",
+    authorization_url: paystackData.data?.authorization_url ?? null,
   });
 }

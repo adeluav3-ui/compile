@@ -218,6 +218,7 @@ export async function middleware(request: NextRequest) {
     "/api/school/auth/login",
     "/api/school/auth/signout",
     "/api/school/signup",
+    "/api/school/payment/pre-auth-signup",
   ];
   if (UNAUTHED_API_PATHS.includes(pathname)) {
     return supabaseResponse;
