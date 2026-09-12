@@ -297,7 +297,7 @@ export const subjects = pgTable("subjects", {
 export const lessons = pgTable("lessons", {
   id: uuid("id").primaryKey().defaultRandom(),
   subjectId: uuid("subject_id").notNull().references(() => subjects.id),
-  level: classLevelEnum("level").notNull(),
+  level: classLevelEnum("level"),               // nullable — lessons are shared across all levels
   title: text("title").notNull(),
   description: text("description"),
   type: lessonTypeEnum("type").notNull().default("video"),

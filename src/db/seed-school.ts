@@ -221,7 +221,7 @@ async function main() {
   for (const l of lessonDefs) {
     await db
       .insert(schema.lessons)
-      .values({ ...l, subjectId, level: "JSS1", type: "video" })
+      .values({ ...l, subjectId, type: "video" })
       .onConflictDoUpdate({
         target: schema.lessons.id,
         set: {
