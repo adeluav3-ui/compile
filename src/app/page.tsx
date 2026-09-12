@@ -91,10 +91,10 @@ export default function Home() {
               </div>
             </div>
 
-            {/* School Edition — soon */}
-            <div className="flex flex-col rounded-[3px] border border-line bg-surface p-7 md:p-8">
-              <span className="mb-5 inline-flex w-fit items-center rounded-[2px] bg-line px-[9px] py-1 font-mono text-[10px] tracking-[0.06em] text-muted uppercase">
-                Coming soon
+            {/* School Edition — live */}
+            <div className="flex flex-col rounded-[3px] border border-navy bg-surface p-7 md:p-8">
+              <span className="mb-5 inline-flex w-fit items-center rounded-[2px] bg-navy/10 px-[9px] py-1 font-mono text-[10px] tracking-[0.06em] text-navy uppercase">
+                Available now
               </span>
               <h3 className="mb-2.5 font-serif text-[21px] font-semibold text-navy-deep">
                 School Edition
@@ -103,11 +103,11 @@ export default function Home() {
                 A full JSS1–SSS3 curriculum for schools — course content, practical exams, and
                 dashboards for teachers, students, and school admins.
               </p>
-              <Link href="/school" className="text-sm font-semibold text-[#9A9FA6]">
+              <Link href="/school" className="text-sm font-semibold text-navy hover:underline">
                 Learn more →
               </Link>
               <div className="mt-auto border-t border-line pt-3.5 font-mono text-[11px] text-muted">
-                Built after Cohort 01
+                From ₦150,000/month per school
               </div>
             </div>
           </div>
