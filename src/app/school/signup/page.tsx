@@ -12,7 +12,7 @@ const NIGERIAN_STATES = [
   "Plateau", "Rivers", "Sokoto", "Taraba", "Yobe", "Zamfara",
 ];
 
-type Plan = "monthly" | "yearly";
+type Plan = "monthly" | "term" | "session";
 
 export default function SchoolSignupPage() {
   const [schoolName, setSchoolName] = useState("");
@@ -184,24 +184,26 @@ export default function SchoolSignupPage() {
           {/* Plan selector */}
           <div>
             <label className="mb-2 block font-mono text-xs text-muted">Subscription plan</label>
-            <div className="grid grid-cols-2 gap-2">
-              {(["monthly", "yearly"] as Plan[]).map((p) => (
+            <div className="grid grid-cols-3 gap-2">
+              {(
+                [
+                  { key: "monthly", label: "Monthly", amount: "₦150,000", note: "30 days" },
+                  { key: "term",    label: "Per Term", amount: "₦400,000", note: "90 days" },
+                  { key: "session", label: "Per Session", amount: "₦1,000,000", note: "365 days" },
+                ] as { key: Plan; label: string; amount: string; note: string }[]
+              ).map((p) => (
                 <button
-                  key={p}
+                  key={p.key}
                   type="button"
-                  onClick={() => setPlan(p)}
+                  onClick={() => setPlan(p.key)}
                   disabled={loading}
-                  className={`rounded-[3px] border px-3 py-3 text-left transition-colors disabled:opacity-60 ${
-                    plan === p ? "border-navy bg-navy/5" : "border-line hover:border-navy"
+                  className={`rounded-[3px] border px-2 py-3 text-left transition-colors disabled:opacity-60 ${
+                    plan === p.key ? "border-navy bg-navy/5" : "border-line hover:border-navy"
                   }`}
                 >
-                  <div className="font-mono text-xs font-semibold text-navy-deep capitalize">{p}</div>
-                  <div className="mt-0.5 font-semibold text-ink">
-                    {p === "monthly" ? "₦150,000" : "₦1,200,000"}
-                  </div>
-                  <div className="mt-0.5 font-mono text-[10px] text-muted">
-                    {p === "monthly" ? "30 days" : "365 days · save ₦600k"}
-                  </div>
+                  <div className="font-mono text-[10px] font-semibold text-navy-deep">{p.label}</div>
+                  <div className="mt-0.5 text-sm font-semibold text-ink">{p.amount}</div>
+                  <div className="mt-0.5 font-mono text-[10px] text-muted">{p.note}</div>
                 </button>
               ))}
             </div>
@@ -224,9 +226,11 @@ export default function SchoolSignupPage() {
           >
             {loading
               ? status || "Please wait…"
-              : plan === "yearly"
-                ? "Continue to payment — ₦1,200,000 →"
-                : "Continue to payment — ₦150,000 →"}
+              : plan === "session"
+                ? "Continue to payment — ₦1,000,000 →"
+                : plan === "term"
+                  ? "Continue to payment — ₦400,000 →"
+                  : "Continue to payment — ₦150,000 →"}
           </button>
 
           <p className="text-center font-mono text-xs text-muted">

@@ -57,7 +57,7 @@ export default function OnboardingModal({
                 href="/school/payment"
                 className="rounded-[3px] bg-navy px-5 py-2.5 font-mono text-sm text-surface transition-colors hover:bg-navy-deep"
               >
-                Subscribe — ₦150,000/month →
+                Activate subscription →
               </a>
             )}
 

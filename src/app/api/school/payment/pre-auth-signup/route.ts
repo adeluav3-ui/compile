@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 
-const MONTHLY_KOBO = 15_000_000;
-const YEARLY_KOBO = 120_000_000;
+const PLANS = {
+  monthly: { kobo: 15_000_000, days: 30 },
+  term:    { kobo: 40_000_000, days: 90 },
+  session: { kobo: 100_000_000, days: 365 },
+} as const;
+
+type PlanKey = keyof typeof PLANS;
 
 function siteOrigin() {
   if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
@@ -11,19 +16,19 @@ function siteOrigin() {
 
 // POST /api/school/payment/pre-auth-signup — public
 // Initialises a Paystack transaction for school signup (no account exists yet).
-// Body: { email, plan?: "monthly" | "yearly" }
+// Body: { email, plan?: "monthly" | "term" | "session" }
 // Returns: { authorization_url, reference }
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   const email: string = body?.email?.trim().toLowerCase() ?? "";
-  const plan = body?.plan === "yearly" ? "yearly" : "monthly";
+  const planKey: PlanKey = body?.plan in PLANS ? (body.plan as PlanKey) : "monthly";
 
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return NextResponse.json({ error: "Valid email is required." }, { status: 400 });
   }
 
-  const amountKobo = plan === "yearly" ? YEARLY_KOBO : MONTHLY_KOBO;
-  const reference = `SCHOOL-SIGNUP-${plan.toUpperCase()}-${randomBytes(8).toString("hex").toUpperCase()}`;
+  const { kobo } = PLANS[planKey];
+  const reference = `SCHOOL-SIGNUP-${planKey.toUpperCase()}-${randomBytes(8).toString("hex").toUpperCase()}`;
 
   const paystackRes = await fetch("https://api.paystack.co/transaction/initialize", {
     method: "POST",
@@ -33,7 +38,7 @@ export async function POST(req: NextRequest) {
     },
     body: JSON.stringify({
       email,
-      amount: amountKobo,
+      amount: kobo,
       reference,
       currency: "NGN",
       callback_url: `${siteOrigin()}/school/signup/callback`,

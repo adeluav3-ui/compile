@@ -44,7 +44,7 @@ export default function SchoolPage() {
             </Link>
           </div>
           <p className="mb-14 text-xs text-muted">
-            ₦150,000/month · demo needs no sign-up
+            From ₦150,000/month · demo needs no sign-up
           </p>
 
           {/* Stat row */}
@@ -55,7 +55,7 @@ export default function SchoolPage() {
             {[
               { num: "JSS1–SSS3", label: "Full curriculum, one platform" },
               { num: "Offline", label: "Runs on your school's local network" },
-              { num: "₦150k", label: "Flat monthly, per school" },
+              { num: "₦150k", label: "Starting monthly, per school" },
             ].map((s) => (
               <div key={s.num} className="bg-surface px-5 py-7 text-center">
                 <div className="mb-1 font-serif text-[32px] font-bold text-navy-deep">{s.num}</div>
@@ -196,11 +196,9 @@ export default function SchoolPage() {
             </h2>
           </div>
 
-          <div className="mx-auto max-w-[520px] rounded-[3px] border border-navy bg-surface p-10 text-center shadow-[0_16px_40px_-18px_rgba(27,53,94,0.25)]">
-            <div className="font-serif text-[44px] font-bold text-navy-deep">
-              ₦150,000<span className="font-sans text-[15px] font-medium text-muted">/month per school</span>
-            </div>
-            <ul className="my-[26px] mb-[30px] text-left text-sm text-muted">
+          <div className="mx-auto max-w-[760px]">
+            {/* Feature list */}
+            <ul className="mx-auto mb-10 max-w-[520px] text-left text-sm text-muted">
               {[
                 "Full JSS1–SSS3 curriculum",
                 "Admin, teacher, and student dashboards",
@@ -214,22 +212,43 @@ export default function SchoolPage() {
                 </li>
               ))}
             </ul>
-            <a
-              href="/school/signup"
-              className="block w-full rounded-[2px] bg-navy py-[11px] text-center text-sm font-semibold text-white transition-colors hover:bg-navy-deep"
-            >
-              Register your school →
-            </a>
-            <p className="mt-3 text-xs text-muted">
-              Or{" "}
-              <a href="/school/demo" className="text-steel hover:underline">
-                try the demo first
-              </a>{" "}
-              · questions?{" "}
-              <a href="mailto:compile100@gmail.com" className="text-steel hover:underline">
-                compile100@gmail.com
+
+            {/* Pricing tiers */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              {[
+                { label: "Monthly", amount: "₦150,000", note: "30 days", highlight: false },
+                { label: "Per Term", amount: "₦400,000", note: "90 days · save ₦50k vs monthly", highlight: false },
+                { label: "Per Session", amount: "₦1,000,000", note: "365 days · save ₦800k vs monthly", highlight: true },
+              ].map((tier) => (
+                <div
+                  key={tier.label}
+                  className={`rounded-[3px] border p-6 text-center ${tier.highlight ? "border-navy bg-navy/5" : "border-line bg-surface"}`}
+                >
+                  <div className="mb-1 font-mono text-xs font-semibold text-navy-deep">{tier.label}</div>
+                  <div className="my-2 font-serif text-[28px] font-bold text-navy-deep">{tier.amount}</div>
+                  <div className="font-mono text-[10px] text-muted">{tier.note}</div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-8 text-center">
+              <a
+                href="/school/signup"
+                className="inline-block rounded-[2px] bg-navy px-8 py-[11px] text-sm font-semibold text-white transition-colors hover:bg-navy-deep"
+              >
+                Register your school →
               </a>
-            </p>
+              <p className="mt-3 text-xs text-muted">
+                Or{" "}
+                <a href="/school/demo" className="text-steel hover:underline">
+                  try the demo first
+                </a>{" "}
+                · questions?{" "}
+                <a href="mailto:compile100@gmail.com" className="text-steel hover:underline">
+                  compile100@gmail.com
+                </a>
+              </p>
+            </div>
           </div>
         </div>
       </section>

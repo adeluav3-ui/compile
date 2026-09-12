@@ -55,7 +55,12 @@ export async function POST(req: NextRequest) {
           .set({ status: "paid" })
           .where(eq(schoolSubscriptions.paystackReference, reference));
 
-        const daysGranted = sub.amountKobo === 120_000_000 ? 365 : 30;
+        const DAYS: Record<number, number> = {
+          15_000_000: 30,
+          40_000_000: 90,
+          100_000_000: 365,
+        };
+        const daysGranted = DAYS[sub.amountKobo] ?? 30;
 
         // Extend school subscription from current expiry (or now), whichever is later
         const [school] = await db

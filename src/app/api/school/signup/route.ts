@@ -4,8 +4,11 @@ import { db } from "@/db";
 import { profiles, userRoles, schools, schoolSubscriptions } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
-const MONTHLY_KOBO = 15_000_000; // ₦150,000
-const YEARLY_KOBO = 120_000_000;  // ₦1,200,000
+const VALID_AMOUNTS: Record<number, number> = {
+  15_000_000: 30,   // ₦150,000 monthly
+  40_000_000: 90,   // ₦400,000 per term
+  100_000_000: 365, // ₦1,000,000 per session
+};
 
 // POST /api/school/signup — public, verifies Paystack payment then creates school + admin account
 export async function POST(req: NextRequest) {
@@ -45,19 +48,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Payment was not successful." }, { status: 402 });
   }
 
-  // Determine subscription duration from amount paid
   const amountPaid: number = txn.amount;
-  let daysGranted: number;
-
-  if (amountPaid === YEARLY_KOBO) {
-    daysGranted = 365;
-  } else if (amountPaid === MONTHLY_KOBO) {
-    daysGranted = 30;
-  } else {
+  if (!(amountPaid in VALID_AMOUNTS)) {
     return NextResponse.json({ error: "Unexpected payment amount. Contact support." }, { status: 402 });
   }
 
-  // Ensure reference hasn't already been used to create an account
+  const daysGranted = VALID_AMOUNTS[amountPaid];
+
+  // Ensure reference hasn't already been used
   const existing = await db
     .select({ id: schoolSubscriptions.id })
     .from(schoolSubscriptions)
@@ -76,8 +74,7 @@ export async function POST(req: NextRequest) {
   });
 
   if (authError || !authData.user) {
-    const msg = authError?.message ?? "Failed to create account.";
-    return NextResponse.json({ error: msg }, { status: 400 });
+    return NextResponse.json({ error: authError?.message ?? "Failed to create account." }, { status: 400 });
   }
 
   const userId = authData.user.id;

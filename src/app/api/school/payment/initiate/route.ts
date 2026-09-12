@@ -5,8 +5,13 @@ import { schoolSubscriptions, schools, profiles } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { randomBytes } from "crypto";
 
-const MONTHLY_KOBO = 15_000_000;
-const YEARLY_KOBO = 120_000_000;
+const PLANS = {
+  monthly: { kobo: 15_000_000, days: 30 },
+  term:    { kobo: 40_000_000, days: 90 },
+  session: { kobo: 100_000_000, days: 365 },
+} as const;
+
+type PlanKey = keyof typeof PLANS;
 
 function siteOrigin() {
   if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
@@ -14,8 +19,7 @@ function siteOrigin() {
 }
 
 // POST /api/school/payment/initiate — school admin initiates a subscription renewal
-// Body: { plan?: "monthly" | "yearly" }
-// Returns: { authorization_url, reference, ... }
+// Body: { plan?: "monthly" | "term" | "session" }
 export async function POST(req: NextRequest) {
   const session = await getSchoolSession();
   if (!session || session.role !== "school_admin") {
@@ -23,9 +27,8 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json().catch(() => ({}));
-  const plan = body?.plan === "yearly" ? "yearly" : "monthly";
-  const amountKobo = plan === "yearly" ? YEARLY_KOBO : MONTHLY_KOBO;
-  const daysGranted = plan === "yearly" ? 365 : 30;
+  const planKey: PlanKey = body?.plan in PLANS ? (body.plan as PlanKey) : "monthly";
+  const { kobo: amountKobo, days: daysGranted } = PLANS[planKey];
 
   const [profile] = await db
     .select({ email: profiles.email })
@@ -36,7 +39,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Profile not found." }, { status: 404 });
   }
 
-  const reference = `SCHOOL-${plan.toUpperCase()}-${session.schoolId.slice(0, 8)}-${randomBytes(6).toString("hex").toUpperCase()}`;
+  const reference = `SCHOOL-${planKey.toUpperCase()}-${session.schoolId.slice(0, 8)}-${randomBytes(6).toString("hex").toUpperCase()}`;
 
   const now = new Date();
   const periodEnd = new Date(now);
@@ -56,7 +59,6 @@ export async function POST(req: NextRequest) {
     .from(schools)
     .where(eq(schools.id, session.schoolId));
 
-  // Initialise Paystack transaction to get hosted checkout URL
   const paystackRes = await fetch("https://api.paystack.co/transaction/initialize", {
     method: "POST",
     headers: {
@@ -78,7 +80,7 @@ export async function POST(req: NextRequest) {
     reference,
     email: profile.email,
     amountKobo,
-    plan,
+    plan: planKey,
     schoolName: school?.name ?? "Your School",
     authorization_url: paystackData.data?.authorization_url ?? null,
   });

@@ -2,18 +2,26 @@
 
 import { useState } from "react";
 
-type Plan = "monthly" | "yearly";
+type Plan = "monthly" | "term" | "session";
 
-const PLANS: Record<Plan, { label: string; amountLabel: string; note: string }> = {
+const PLANS: Record<Plan, { label: string; amountLabel: string; note: string; days: number }> = {
   monthly: {
     label: "Monthly",
     amountLabel: "₦150,000",
-    note: "30 days of access",
+    note: "30 days",
+    days: 30,
   },
-  yearly: {
-    label: "Yearly",
-    amountLabel: "₦1,200,000",
-    note: "365 days · save ₦600,000 vs monthly",
+  term: {
+    label: "Per Term",
+    amountLabel: "₦400,000",
+    note: "90 days · save ₦50,000 vs monthly",
+    days: 90,
+  },
+  session: {
+    label: "Per Session",
+    amountLabel: "₦1,000,000",
+    note: "365 days · save ₦800,000 vs monthly",
+    days: 365,
   },
 };
 
@@ -61,7 +69,7 @@ export default function PaymentClient({
       ? new Date(currentExpiry)
       : new Date();
   const projected = new Date(base);
-  projected.setDate(projected.getDate() + (plan === "yearly" ? 365 : 30));
+  projected.setDate(projected.getDate() + PLANS[plan].days);
   const projectedLabel = projected.toLocaleDateString("en-GB", {
     day: "numeric",
     month: "long",
@@ -138,9 +146,7 @@ export default function PaymentClient({
         disabled={loading}
         className="w-full rounded-[3px] bg-navy py-3 font-mono text-sm text-surface transition-colors hover:bg-navy-deep disabled:opacity-50"
       >
-        {loading
-          ? "Redirecting to payment…"
-          : `${isRenewal ? "Renew" : "Subscribe"} — ${selected.amountLabel} →`}
+        {loading ? "Redirecting to payment…" : `${isRenewal ? "Renew" : "Subscribe"} — ${selected.amountLabel} →`}
       </button>
 
       <p className="mt-3 text-center font-mono text-xs text-muted">

@@ -4,11 +4,15 @@ import { db } from "@/db";
 import { schoolSubscriptions, schools } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
-const MONTHLY_KOBO = 15_000_000;
-const YEARLY_KOBO = 120_000_000;
-const SUB_CACHE_COOKIE = "compile_sub_v1"; // clear so middleware re-fetches from DB
+const VALID_AMOUNTS: Record<number, number> = {
+  15_000_000: 30,   // ₦150,000 monthly
+  40_000_000: 90,   // ₦400,000 per term
+  100_000_000: 365, // ₦1,000,000 per session
+};
 
-// POST /api/school/payment/verify — verify a Paystack school payment after popup success
+const SUB_CACHE_COOKIE = "compile_sub_v1";
+
+// POST /api/school/payment/verify — verify a Paystack school payment after redirect
 export async function POST(req: NextRequest) {
   const session = await getSchoolSession();
   if (!session || session.role !== "school_admin") {
@@ -57,24 +61,19 @@ export async function POST(req: NextRequest) {
   }
 
   const paystackData = await paystackRes.json();
-
   const amountPaid: number = paystackData.data?.amount;
-  if (
-    paystackData.data?.status !== "success" ||
-    (amountPaid !== MONTHLY_KOBO && amountPaid !== YEARLY_KOBO)
-  ) {
+
+  if (paystackData.data?.status !== "success" || !(amountPaid in VALID_AMOUNTS)) {
     return NextResponse.json({ error: "Payment not confirmed by Paystack." }, { status: 402 });
   }
 
-  const daysGranted = amountPaid === YEARLY_KOBO ? 365 : 30;
+  const daysGranted = VALID_AMOUNTS[amountPaid];
 
-  // Mark subscription paid
   await db
     .update(schoolSubscriptions)
     .set({ status: "paid" })
     .where(eq(schoolSubscriptions.paystackReference, reference));
 
-  // Extend school subscription from current expiry or now, whichever is later
   const [school] = await db
     .select({ subscriptionExpiresAt: schools.subscriptionExpiresAt })
     .from(schools)
@@ -94,7 +93,6 @@ export async function POST(req: NextRequest) {
     .where(eq(schools.id, session.schoolId));
 
   const res = NextResponse.json({ ok: true, expiresAt: newExpiry.toISOString() });
-  // Clear cached subscription status so middleware re-reads from DB on next request
   res.cookies.set(SUB_CACHE_COOKIE, "", { maxAge: 0, path: "/" });
   return res;
 }
