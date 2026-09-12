@@ -133,8 +133,8 @@ async function main() {
       order: 4,
       gradingRubric: "Award marks for: describing good password practice (20pts), identifying at least two online safety risks (20pts), explaining what a file path is (20pts), demonstrating correct folder/file organisation (40pts).",
       notesUrl: null,
-      videoId: null,
-      videoProvider: null,
+      videoId: "sX3hpeJk7as",
+      videoProvider: "youtube",
     },
     {
       id: "f0000000-0000-0000-0000-000000000005",
@@ -143,8 +143,8 @@ async function main() {
       order: 5,
       gradingRubric: "Award marks for: defining source code accurately (20pts), explaining why programming languages exist (20pts), describing what a compiler or interpreter does (20pts), giving a real-world analogy for how instructions work (40pts).",
       notesUrl: null,
-      videoId: null,
-      videoProvider: null,
+      videoId: "f_0UlrV9ld8",
+      videoProvider: "youtube",
     },
     {
       id: "f0000000-0000-0000-0000-000000000006",
